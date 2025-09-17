@@ -84,13 +84,29 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadOverlay(ped, 3, data["ageing"].item, 1.0)
     SetPedHeadOverlayColor(ped, 3, 1, data["ageing"].texture, 0)
 
-    -- Use collection-based natives to prevent clothing shifting during migration
+    -- Helper function to convert global component index to collection-based and apply
     local function applyComponentWithCollection(componentId, drawable, texture)
-        local collectionName = GetPedDrawableVariationCollectionName(ped, componentId, drawable)
-        local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, componentId, drawable)
+        local collectionName = nil
+        local localIndex = -1
         
+        local collectionsCount = GetPedCollectionsCount(ped)
+        local currentGlobalIndex = 0
+        
+        for i = 0, collectionsCount - 1 do
+            local currentCollectionName = GetPedCollectionName(ped, i)
+            local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(ped, componentId, currentCollectionName)
+            
+            if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + drawableVariationsCount then
+                collectionName = currentCollectionName
+                localIndex = drawable - currentGlobalIndex
+                break
+            end
+            
+            currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
+        end
+        
+        -- Use collection-based native to prevent clothing shifting
         if collectionName and localIndex >= 0 then
-            -- Use collection-based native - no need for double call
             SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
         else
             -- Fallback to traditional method without double call
@@ -125,14 +141,30 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     -- Bag
     applyComponentWithCollection(5, data["bag"].item, data["bag"].texture)
 
-    -- Use collection-based natives for props as well
+    -- Helper function to convert global prop index to collection-based and apply
     local function applyPropWithCollection(propId, drawable, texture)
         if drawable ~= -1 and drawable ~= 0 then
-            local collectionName = GetPedPropCollectionName(ped, propId, drawable)
-            local localIndex = GetPedPropCollectionLocalIndex(ped, propId, drawable)
+            local collectionName = nil
+            local localIndex = -1
             
+            local collectionsCount = GetPedCollectionsCount(ped)
+            local currentGlobalIndex = 0
+            
+            for i = 0, collectionsCount - 1 do
+                local currentCollectionName = GetPedCollectionName(ped, i)
+                local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(ped, propId, currentCollectionName)
+                
+                if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + propVariationsCount then
+                    collectionName = currentCollectionName
+                    localIndex = drawable - currentGlobalIndex
+                    break
+                end
+                
+                currentGlobalIndex = currentGlobalIndex + propVariationsCount
+            end
+            
+            -- Use collection-based native to prevent prop shifting
             if collectionName and localIndex >= 0 then
-                -- Use collection-based native
                 SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
             else
                 -- Fallback to traditional method

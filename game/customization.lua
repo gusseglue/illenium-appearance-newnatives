@@ -488,10 +488,27 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                -- Use collection-based native instead of flag 2 approach
-                local collectionName = GetPedDrawableVariationCollectionName(cache.ped, componentId, applied.drawable)
-                local localIndex = GetPedDrawableVariationCollectionLocalIndex(cache.ped, componentId, applied.drawable)
+                -- Convert global index to collection-based approach
+                local collectionName = nil
+                local localIndex = -1
                 
+                local collectionsCount = GetPedCollectionsCount(cache.ped)
+                local currentGlobalIndex = 0
+                
+                for k = 0, collectionsCount - 1 do
+                    local currentCollectionName = GetPedCollectionName(cache.ped, k)
+                    local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(cache.ped, componentId, currentCollectionName)
+                    
+                    if applied.drawable >= currentGlobalIndex and applied.drawable < currentGlobalIndex + drawableVariationsCount then
+                        collectionName = currentCollectionName
+                        localIndex = applied.drawable - currentGlobalIndex
+                        break
+                    end
+                    
+                    currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
+                end
+                
+                -- Use collection-based native instead of flag 2 approach
                 if collectionName and localIndex >= 0 then
                     SetPedCollectionComponentVariation(cache.ped, componentId, collectionName, localIndex, applied.texture, 0)
                 else
@@ -508,9 +525,27 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                local collectionName = GetPedPropCollectionName(cache.ped, propId, applied.drawable)
-                local localIndex = GetPedPropCollectionLocalIndex(cache.ped, propId, applied.drawable)
+                -- Convert global prop index to collection-based approach
+                local collectionName = nil
+                local localIndex = -1
                 
+                local collectionsCount = GetPedCollectionsCount(cache.ped)
+                local currentGlobalIndex = 0
+                
+                for k = 0, collectionsCount - 1 do
+                    local currentCollectionName = GetPedCollectionName(cache.ped, k)
+                    local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(cache.ped, propId, currentCollectionName)
+                    
+                    if applied.drawable >= currentGlobalIndex and applied.drawable < currentGlobalIndex + propVariationsCount then
+                        collectionName = currentCollectionName
+                        localIndex = applied.drawable - currentGlobalIndex
+                        break
+                    end
+                    
+                    currentGlobalIndex = currentGlobalIndex + propVariationsCount
+                end
+                
+                -- Use collection-based native for props
                 if collectionName and localIndex >= 0 then
                     SetPedCollectionPropIndex(cache.ped, propId, collectionName, localIndex, applied.texture, true)
                 else

@@ -297,16 +297,33 @@ local function setPedComponent(ped, component)
             return
         end
 
-        -- Use collection-based native to prevent clothing shifting
-        -- Get the collection info for the current drawable
-        local collectionName = GetPedDrawableVariationCollectionName(ped, component.component_id, component.drawable)
-        local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, component.component_id, component.drawable)
+        -- Convert global index to collection-based approach to prevent clothing shifting
+        -- Find which collection contains this global drawable index
+        local collectionName = nil
+        local localIndex = -1
         
+        local collectionsCount = GetPedCollectionsCount(ped)
+        local currentGlobalIndex = 0
+        
+        for i = 0, collectionsCount - 1 do
+            local currentCollectionName = GetPedCollectionName(ped, i)
+            local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(ped, component.component_id, currentCollectionName)
+            
+            -- Check if our global drawable index falls within this collection's range
+            if component.drawable >= currentGlobalIndex and component.drawable < currentGlobalIndex + drawableVariationsCount then
+                collectionName = currentCollectionName
+                localIndex = component.drawable - currentGlobalIndex
+                break
+            end
+            
+            currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
+        end
+        
+        -- Use collection-based native to prevent clothing shifting
         if collectionName and localIndex >= 0 then
-            -- Use collection-based native
             SetPedCollectionComponentVariation(ped, component.component_id, collectionName, localIndex, component.texture, 0)
         else
-            -- Fallback to traditional method if collection info unavailable
+            -- Fallback to traditional method if collection mapping fails
             SetPedComponentVariation(ped, component.component_id, component.drawable, component.texture, 0)
         end
     end
@@ -325,15 +342,32 @@ local function setPedProp(ped, prop)
         if prop.drawable == -1 then
             ClearPedProp(ped, prop.prop_id)
         else
-            -- Use collection-based native for props
-            local collectionName = GetPedPropCollectionName(ped, prop.prop_id, prop.drawable)
-            local localIndex = GetPedPropCollectionLocalIndex(ped, prop.prop_id, prop.drawable)
+            -- Convert global prop index to collection-based approach
+            local collectionName = nil
+            local localIndex = -1
             
+            local collectionsCount = GetPedCollectionsCount(ped)
+            local currentGlobalIndex = 0
+            
+            for i = 0, collectionsCount - 1 do
+                local currentCollectionName = GetPedCollectionName(ped, i)
+                local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(ped, prop.prop_id, currentCollectionName)
+                
+                -- Check if our global prop index falls within this collection's range
+                if prop.drawable >= currentGlobalIndex and prop.drawable < currentGlobalIndex + propVariationsCount then
+                    collectionName = currentCollectionName
+                    localIndex = prop.drawable - currentGlobalIndex
+                    break
+                end
+                
+                currentGlobalIndex = currentGlobalIndex + propVariationsCount
+            end
+            
+            -- Use collection-based native to prevent prop shifting
             if collectionName and localIndex >= 0 then
-                -- Use collection-based native
                 SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, localIndex, prop.texture, false)
             else
-                -- Fallback to traditional method
+                -- Fallback to traditional method if collection mapping fails
                 SetPedPropIndex(ped, prop.prop_id, prop.drawable, prop.texture, false)
             end
         end
