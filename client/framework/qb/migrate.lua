@@ -52,12 +52,12 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
 
     SetPedHeadBlendData(ped, data["face"].item, data["face2"].item, nil, data["face"].texture, data["face2"].texture, nil, data["facemix"].shapeMix, data["facemix"].skinMix, nil, true)
 
-    -- Pants
-    SetPedComponentVariation(ped, 4, data["pants"].item, 0, 0)
-    SetPedComponentVariation(ped, 4, data["pants"].item, data["pants"].texture, 0)
-
-    -- Hair
-    SetPedComponentVariation(ped, 2, data["hair"].item, 0, 0)
+    -- Pants and Hair - use collection-based natives for these as well
+    SetPedPreloadVariationData(ped, 4, data["pants"].item, data["pants"].texture) -- Pants
+    SetPedPreloadVariationData(ped, 2, data["hair"].item, 0) -- Hair (texture applied separately)
+    ApplyPedPreloadVariationData(ped)
+    
+    -- Hair color applied after component
     SetPedHairColor(ped, data["hair"].texture, data["hair"].texture)
 
     -- Eyebrows
