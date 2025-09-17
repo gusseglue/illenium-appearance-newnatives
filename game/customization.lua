@@ -482,50 +482,24 @@ local function wearClothes(data, typeClothes)
         Wait(0)
     end
 
-    -- Use collection-based natives to prevent clothing shifting when wearing clothes
-    local componentsToApply = {}
-    
     for i = 1, #components do
         local componentId = components[i][1]
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                table.insert(componentsToApply, {componentId, applied.drawable, applied.texture})
+                SetPedComponentVariation(cache.ped, componentId, applied.drawable, applied.texture, 2)
             end
         end
     end
-    
-    -- Preload all component variations
-    for _, comp in pairs(componentsToApply) do
-        SetPedPreloadVariationData(cache.ped, comp[1], comp[2], comp[3])
-    end
-    
-    -- Apply all at once if there are components to apply
-    if #componentsToApply > 0 then
-        ApplyPedPreloadVariationData(cache.ped)
-    end
 
-    -- Handle props with collection-based natives
-    local propsToApply = {}
-    
     for i = 1, #props do
         local propId = props[i][1]
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                table.insert(propsToApply, {propId, applied.drawable, applied.texture})
+                SetPedPropIndex(cache.ped, propId, applied.drawable, applied.texture, true)
             end
         end
-    end
-    
-    -- Preload all prop variations
-    for _, prop in pairs(propsToApply) do
-        SetPedPreloadPropData(cache.ped, prop[1], prop[2], prop[3])
-    end
-    
-    -- Apply all props at once if there are props to apply
-    if #propsToApply > 0 then
-        ApplyPedPreloadPropData(cache.ped)
     end
 
     TaskPlayAnim(cache.ped, animationsOn.dict, animationsOn.anim, 3.0, 3.0, animationsOn.duration, animationsOn.move, 0, false, false, false)
@@ -543,16 +517,9 @@ local function removeClothes(typeClothes)
         Wait(0)
     end
 
-    -- Use collection-based natives to prevent clothing shifting when removing clothes
-    if #components > 0 then
-        -- Preload all component resets
-        for i = 1, #components do
-            local component = components[i]
-            SetPedPreloadVariationData(cache.ped, component[1], component[2], 0)
-        end
-        
-        -- Apply all component resets at once
-        ApplyPedPreloadVariationData(cache.ped)
+    for i = 1, #components do
+        local component = components[i]
+        SetPedComponentVariation(cache.ped, component[1], component[2], 0, 2)
     end
 
     for i = 1, #props do

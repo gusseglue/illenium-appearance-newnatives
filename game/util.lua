@@ -303,24 +303,8 @@ end
 
 local function setPedComponents(ped, components)
     if components then
-        -- Use collection-based natives to prevent clothing shifting
-        local componentsToApply = {}
-        
-        -- Collect valid components first
         for _, v in pairs(components) do
-            if v and not (isPedFreemodeModel(ped) and (v.component_id == 0 or v.component_id == 2)) then
-                table.insert(componentsToApply, v)
-            end
-        end
-        
-        if #componentsToApply > 0 then
-            -- Preload all component variations first
-            for _, v in pairs(componentsToApply) do
-                SetPedPreloadVariationData(ped, v.component_id, v.drawable, v.texture)
-            end
-            
-            -- Apply all preloaded variations at once
-            ApplyPedPreloadVariationData(ped)
+            setPedComponent(ped, v)
         end
     end
 end
@@ -337,31 +321,8 @@ end
 
 local function setPedProps(ped, props)
     if props then
-        -- Use collection-based natives to prevent prop shifting
-        local propsToSet = {}
-        local propsToClear = {}
-        
         for _, v in pairs(props) do
-            if v then
-                if v.drawable == -1 then
-                    table.insert(propsToClear, v)
-                else
-                    table.insert(propsToSet, v)
-                end
-            end
-        end
-        
-        -- Clear props that need to be cleared
-        for _, prop in pairs(propsToClear) do
-            ClearPedProp(ped, prop.prop_id)
-        end
-        
-        -- Preload and apply props that need to be set
-        if #propsToSet > 0 then
-            for _, prop in pairs(propsToSet) do
-                SetPedPreloadPropData(ped, prop.prop_id, prop.drawable, prop.texture)
-            end
-            ApplyPedPreloadPropData(ped)
+            setPedProp(ped, v)
         end
     end
 end
