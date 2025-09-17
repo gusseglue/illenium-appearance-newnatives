@@ -84,75 +84,63 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadOverlay(ped, 3, data["ageing"].item, 1.0)
     SetPedHeadOverlayColor(ped, 3, 1, data["ageing"].texture, 0)
 
-    -- Arms
-    SetPedComponentVariation(ped, 3, data["arms"].item, 0, 2)
-    SetPedComponentVariation(ped, 3, data["arms"].item, data["arms"].texture, 0)
+    -- Use collection-based natives to prevent clothing shifting during migration
+    -- Preload all component variations first
+    SetPedPreloadVariationData(ped, 3, data["arms"].item, data["arms"].texture) -- Arms
+    SetPedPreloadVariationData(ped, 8, data["t-shirt"].item, data["t-shirt"].texture) -- T-Shirt
+    SetPedPreloadVariationData(ped, 9, data["vest"].item, data["vest"].texture) -- Vest
+    SetPedPreloadVariationData(ped, 11, data["torso2"].item, data["torso2"].texture) -- Torso 2
+    SetPedPreloadVariationData(ped, 6, data["shoes"].item, data["shoes"].texture) -- Shoes
+    SetPedPreloadVariationData(ped, 1, data["mask"].item, data["mask"].texture) -- Mask
+    SetPedPreloadVariationData(ped, 10, data["decals"].item, data["decals"].texture) -- Badge
+    SetPedPreloadVariationData(ped, 7, data["accessory"].item, data["accessory"].texture) -- Accessory
+    SetPedPreloadVariationData(ped, 5, data["bag"].item, data["bag"].texture) -- Bag
+    
+    -- Apply all preloaded variations at once to prevent visual shifting
+    ApplyPedPreloadVariationData(ped)
 
-    -- T-Shirt
-    SetPedComponentVariation(ped, 8, data["t-shirt"].item, 0, 2)
-    SetPedComponentVariation(ped, 8, data["t-shirt"].item, data["t-shirt"].texture, 0)
-
-    -- Vest
-    SetPedComponentVariation(ped, 9, data["vest"].item, 0, 2)
-    SetPedComponentVariation(ped, 9, data["vest"].item, data["vest"].texture, 0)
-
-    -- Torso 2
-    SetPedComponentVariation(ped, 11, data["torso2"].item, 0, 2)
-    SetPedComponentVariation(ped, 11, data["torso2"].item, data["torso2"].texture, 0)
-
-    -- Shoes
-    SetPedComponentVariation(ped, 6, data["shoes"].item, 0, 2)
-    SetPedComponentVariation(ped, 6, data["shoes"].item, data["shoes"].texture, 0)
-
-    -- Mask
-    SetPedComponentVariation(ped, 1, data["mask"].item, 0, 2)
-    SetPedComponentVariation(ped, 1, data["mask"].item, data["mask"].texture, 0)
-
-    -- Badge
-    SetPedComponentVariation(ped, 10, data["decals"].item, 0, 2)
-    SetPedComponentVariation(ped, 10, data["decals"].item, data["decals"].texture, 0)
-
-    -- Accessory
-    SetPedComponentVariation(ped, 7, data["accessory"].item, 0, 2)
-    SetPedComponentVariation(ped, 7, data["accessory"].item, data["accessory"].texture, 0)
-
-    -- Bag
-    SetPedComponentVariation(ped, 5, data["bag"].item, 0, 2)
-    SetPedComponentVariation(ped, 5, data["bag"].item, data["bag"].texture, 0)
-
+    -- Use collection-based natives for props to prevent shifting
+    -- Clear props first
+    for i = 0, 7 do
+        ClearPedProp(ped, i)
+    end
+    
+    -- Preload prop variations that need to be applied
+    local propsToApply = {}
+    
     -- Hat
     if data["hat"].item ~= -1 and data["hat"].item ~= 0 then
-        SetPedPropIndex(ped, 0, data["hat"].item, data["hat"].texture, true)
-    else
-        ClearPedProp(ped, 0)
+        SetPedPreloadPropData(ped, 0, data["hat"].item, data["hat"].texture)
+        propsToApply[#propsToApply + 1] = true
     end
 
     -- Glass
     if data["glass"].item ~= -1 and data["glass"].item ~= 0 then
-        SetPedPropIndex(ped, 1, data["glass"].item, data["glass"].texture, true)
-    else
-        ClearPedProp(ped, 1)
+        SetPedPreloadPropData(ped, 1, data["glass"].item, data["glass"].texture)
+        propsToApply[#propsToApply + 1] = true
     end
 
     -- Ear
     if data["ear"].item ~= -1 and data["ear"].item ~= 0 then
-        SetPedPropIndex(ped, 2, data["ear"].item, data["ear"].texture, true)
-    else
-        ClearPedProp(ped, 2)
+        SetPedPreloadPropData(ped, 2, data["ear"].item, data["ear"].texture)
+        propsToApply[#propsToApply + 1] = true
     end
 
     -- Watch
     if data["watch"].item ~= -1 and data["watch"].item ~= 0 then
-        SetPedPropIndex(ped, 6, data["watch"].item, data["watch"].texture, true)
-    else
-        ClearPedProp(ped, 6)
+        SetPedPreloadPropData(ped, 6, data["watch"].item, data["watch"].texture)
+        propsToApply[#propsToApply + 1] = true
     end
 
     -- Bracelet
     if data["bracelet"].item ~= -1 and data["bracelet"].item ~= 0 then
-        SetPedPropIndex(ped, 7, data["bracelet"].item, data["bracelet"].texture, true)
-    else
-        ClearPedProp(ped, 7)
+        SetPedPreloadPropData(ped, 7, data["bracelet"].item, data["bracelet"].texture)
+        propsToApply[#propsToApply + 1] = true
+    end
+    
+    -- Apply all preloaded props at once if any need to be applied
+    if #propsToApply > 0 then
+        ApplyPedPreloadPropData(ped)
     end
 
     if data["eye_color"].item ~= -1 and data["eye_color"].item ~= 0 then
