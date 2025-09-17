@@ -20,12 +20,29 @@ function LoadJobOutfit(oData)
         data = json.decode(data)
     end
 
-    -- Helper function to apply components with collection-based natives
+    -- Helper function to convert global index to collection-based and apply
     local function applyComponentWithCollection(componentId, drawable, texture)
         if drawable ~= nil then
-            local collectionName = GetPedDrawableVariationCollectionName(ped, componentId, drawable)
-            local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, componentId, drawable)
+            local collectionName = nil
+            local localIndex = -1
             
+            local collectionsCount = GetPedCollectionsCount(ped)
+            local currentGlobalIndex = 0
+            
+            for i = 0, collectionsCount - 1 do
+                local currentCollectionName = GetPedCollectionName(ped, i)
+                local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(ped, componentId, currentCollectionName)
+                
+                if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + drawableVariationsCount then
+                    collectionName = currentCollectionName
+                    localIndex = drawable - currentGlobalIndex
+                    break
+                end
+                
+                currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
+            end
+            
+            -- Use collection-based native to prevent clothing shifting
             if collectionName and localIndex >= 0 then
                 SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
             else
@@ -85,12 +102,29 @@ function LoadJobOutfit(oData)
     -- Bag
     applyComponentWithCollection(5, data["bag"] and data["bag"].item, data["bag"] and data["bag"].texture)
 
-    -- Helper function for props with collection-based natives
+    -- Helper function to convert global prop index to collection-based and apply
     local function applyPropWithCollection(propId, drawable, texture)
         if drawable ~= nil and drawable ~= -1 and drawable ~= 0 then
-            local collectionName = GetPedPropCollectionName(ped, propId, drawable)
-            local localIndex = GetPedPropCollectionLocalIndex(ped, propId, drawable)
+            local collectionName = nil
+            local localIndex = -1
             
+            local collectionsCount = GetPedCollectionsCount(ped)
+            local currentGlobalIndex = 0
+            
+            for i = 0, collectionsCount - 1 do
+                local currentCollectionName = GetPedCollectionName(ped, i)
+                local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(ped, propId, currentCollectionName)
+                
+                if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + propVariationsCount then
+                    collectionName = currentCollectionName
+                    localIndex = drawable - currentGlobalIndex
+                    break
+                end
+                
+                currentGlobalIndex = currentGlobalIndex + propVariationsCount
+            end
+            
+            -- Use collection-based native for props
             if collectionName and localIndex >= 0 then
                 SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
             else

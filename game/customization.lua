@@ -574,10 +574,27 @@ local function removeClothes(typeClothes)
     -- Use collection-based approach for removing clothes as well
     for i = 1, #components do
         local component = components[i]
-        -- Use collection-based native if available for the default/removal component
-        local collectionName = GetPedDrawableVariationCollectionName(cache.ped, component[1], component[2])
-        local localIndex = GetPedDrawableVariationCollectionLocalIndex(cache.ped, component[1], component[2])
+        -- Convert global index to collection-based approach for removal component
+        local collectionName = nil
+        local localIndex = -1
         
+        local collectionsCount = GetPedCollectionsCount(cache.ped)
+        local currentGlobalIndex = 0
+        
+        for k = 0, collectionsCount - 1 do
+            local currentCollectionName = GetPedCollectionName(cache.ped, k)
+            local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(cache.ped, component[1], currentCollectionName)
+            
+            if component[2] >= currentGlobalIndex and component[2] < currentGlobalIndex + drawableVariationsCount then
+                collectionName = currentCollectionName
+                localIndex = component[2] - currentGlobalIndex
+                break
+            end
+            
+            currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
+        end
+        
+        -- Use collection-based native for removing clothes
         if collectionName and localIndex >= 0 then
             SetPedCollectionComponentVariation(cache.ped, component[1], collectionName, localIndex, 0, 0)
         else
