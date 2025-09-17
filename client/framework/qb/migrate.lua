@@ -84,76 +84,79 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadOverlay(ped, 3, data["ageing"].item, 1.0)
     SetPedHeadOverlayColor(ped, 3, 1, data["ageing"].texture, 0)
 
+    -- Use collection-based natives to prevent clothing shifting during migration
+    local function applyComponentWithCollection(componentId, drawable, texture)
+        local collectionName = GetPedDrawableVariationCollectionName(ped, componentId, drawable)
+        local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, componentId, drawable)
+        
+        if collectionName and localIndex >= 0 then
+            -- Use collection-based native - no need for double call
+            SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
+        else
+            -- Fallback to traditional method without double call
+            SetPedComponentVariation(ped, componentId, drawable, texture, 0)
+        end
+    end
+    
     -- Arms
-    SetPedComponentVariation(ped, 3, data["arms"].item, 0, 2)
-    SetPedComponentVariation(ped, 3, data["arms"].item, data["arms"].texture, 0)
+    applyComponentWithCollection(3, data["arms"].item, data["arms"].texture)
 
     -- T-Shirt
-    SetPedComponentVariation(ped, 8, data["t-shirt"].item, 0, 2)
-    SetPedComponentVariation(ped, 8, data["t-shirt"].item, data["t-shirt"].texture, 0)
+    applyComponentWithCollection(8, data["t-shirt"].item, data["t-shirt"].texture)
 
     -- Vest
-    SetPedComponentVariation(ped, 9, data["vest"].item, 0, 2)
-    SetPedComponentVariation(ped, 9, data["vest"].item, data["vest"].texture, 0)
+    applyComponentWithCollection(9, data["vest"].item, data["vest"].texture)
 
     -- Torso 2
-    SetPedComponentVariation(ped, 11, data["torso2"].item, 0, 2)
-    SetPedComponentVariation(ped, 11, data["torso2"].item, data["torso2"].texture, 0)
+    applyComponentWithCollection(11, data["torso2"].item, data["torso2"].texture)
 
     -- Shoes
-    SetPedComponentVariation(ped, 6, data["shoes"].item, 0, 2)
-    SetPedComponentVariation(ped, 6, data["shoes"].item, data["shoes"].texture, 0)
+    applyComponentWithCollection(6, data["shoes"].item, data["shoes"].texture)
 
     -- Mask
-    SetPedComponentVariation(ped, 1, data["mask"].item, 0, 2)
-    SetPedComponentVariation(ped, 1, data["mask"].item, data["mask"].texture, 0)
+    applyComponentWithCollection(1, data["mask"].item, data["mask"].texture)
 
     -- Badge
-    SetPedComponentVariation(ped, 10, data["decals"].item, 0, 2)
-    SetPedComponentVariation(ped, 10, data["decals"].item, data["decals"].texture, 0)
+    applyComponentWithCollection(10, data["decals"].item, data["decals"].texture)
 
     -- Accessory
-    SetPedComponentVariation(ped, 7, data["accessory"].item, 0, 2)
-    SetPedComponentVariation(ped, 7, data["accessory"].item, data["accessory"].texture, 0)
+    applyComponentWithCollection(7, data["accessory"].item, data["accessory"].texture)
 
     -- Bag
-    SetPedComponentVariation(ped, 5, data["bag"].item, 0, 2)
-    SetPedComponentVariation(ped, 5, data["bag"].item, data["bag"].texture, 0)
+    applyComponentWithCollection(5, data["bag"].item, data["bag"].texture)
 
-    -- Hat
-    if data["hat"].item ~= -1 and data["hat"].item ~= 0 then
-        SetPedPropIndex(ped, 0, data["hat"].item, data["hat"].texture, true)
-    else
-        ClearPedProp(ped, 0)
+    -- Use collection-based natives for props as well
+    local function applyPropWithCollection(propId, drawable, texture)
+        if drawable ~= -1 and drawable ~= 0 then
+            local collectionName = GetPedPropCollectionName(ped, propId, drawable)
+            local localIndex = GetPedPropCollectionLocalIndex(ped, propId, drawable)
+            
+            if collectionName and localIndex >= 0 then
+                -- Use collection-based native
+                SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
+            else
+                -- Fallback to traditional method
+                SetPedPropIndex(ped, propId, drawable, texture, true)
+            end
+        else
+            ClearPedProp(ped, propId)
+        end
     end
+    
+    -- Hat
+    applyPropWithCollection(0, data["hat"].item, data["hat"].texture)
 
     -- Glass
-    if data["glass"].item ~= -1 and data["glass"].item ~= 0 then
-        SetPedPropIndex(ped, 1, data["glass"].item, data["glass"].texture, true)
-    else
-        ClearPedProp(ped, 1)
-    end
+    applyPropWithCollection(1, data["glass"].item, data["glass"].texture)
 
     -- Ear
-    if data["ear"].item ~= -1 and data["ear"].item ~= 0 then
-        SetPedPropIndex(ped, 2, data["ear"].item, data["ear"].texture, true)
-    else
-        ClearPedProp(ped, 2)
-    end
+    applyPropWithCollection(2, data["ear"].item, data["ear"].texture)
 
     -- Watch
-    if data["watch"].item ~= -1 and data["watch"].item ~= 0 then
-        SetPedPropIndex(ped, 6, data["watch"].item, data["watch"].texture, true)
-    else
-        ClearPedProp(ped, 6)
-    end
+    applyPropWithCollection(6, data["watch"].item, data["watch"].texture)
 
     -- Bracelet
-    if data["bracelet"].item ~= -1 and data["bracelet"].item ~= 0 then
-        SetPedPropIndex(ped, 7, data["bracelet"].item, data["bracelet"].texture, true)
-    else
-        ClearPedProp(ped, 7)
-    end
+    applyPropWithCollection(7, data["bracelet"].item, data["bracelet"].texture)
 
     if data["eye_color"].item ~= -1 and data["eye_color"].item ~= 0 then
         SetPedEyeColor(ped, data["eye_color"].item)

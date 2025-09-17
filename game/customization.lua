@@ -482,22 +482,41 @@ local function wearClothes(data, typeClothes)
         Wait(0)
     end
 
+    -- Use collection-based natives for smoother clothing application
     for i = 1, #components do
         local componentId = components[i][1]
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                SetPedComponentVariation(cache.ped, componentId, applied.drawable, applied.texture, 2)
+                -- Use collection-based native instead of flag 2 approach
+                local collectionName = GetPedDrawableVariationCollectionName(cache.ped, componentId, applied.drawable)
+                local localIndex = GetPedDrawableVariationCollectionLocalIndex(cache.ped, componentId, applied.drawable)
+                
+                if collectionName and localIndex >= 0 then
+                    SetPedCollectionComponentVariation(cache.ped, componentId, collectionName, localIndex, applied.texture, 0)
+                else
+                    -- Fallback without double call
+                    SetPedComponentVariation(cache.ped, componentId, applied.drawable, applied.texture, 0)
+                end
             end
         end
     end
 
+    -- Use collection-based natives for props as well
     for i = 1, #props do
         local propId = props[i][1]
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                SetPedPropIndex(cache.ped, propId, applied.drawable, applied.texture, true)
+                local collectionName = GetPedPropCollectionName(cache.ped, propId, applied.drawable)
+                local localIndex = GetPedPropCollectionLocalIndex(cache.ped, propId, applied.drawable)
+                
+                if collectionName and localIndex >= 0 then
+                    SetPedCollectionPropIndex(cache.ped, propId, collectionName, localIndex, applied.texture, true)
+                else
+                    -- Fallback to traditional method
+                    SetPedPropIndex(cache.ped, propId, applied.drawable, applied.texture, true)
+                end
             end
         end
     end
@@ -517,9 +536,19 @@ local function removeClothes(typeClothes)
         Wait(0)
     end
 
+    -- Use collection-based approach for removing clothes as well
     for i = 1, #components do
         local component = components[i]
-        SetPedComponentVariation(cache.ped, component[1], component[2], 0, 2)
+        -- Use collection-based native if available for the default/removal component
+        local collectionName = GetPedDrawableVariationCollectionName(cache.ped, component[1], component[2])
+        local localIndex = GetPedDrawableVariationCollectionLocalIndex(cache.ped, component[1], component[2])
+        
+        if collectionName and localIndex >= 0 then
+            SetPedCollectionComponentVariation(cache.ped, component[1], collectionName, localIndex, 0, 0)
+        else
+            -- Fallback without flag 2
+            SetPedComponentVariation(cache.ped, component[1], component[2], 0, 0)
+        end
     end
 
     for i = 1, #props do

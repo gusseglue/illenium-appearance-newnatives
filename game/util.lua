@@ -297,7 +297,18 @@ local function setPedComponent(ped, component)
             return
         end
 
-        SetPedComponentVariation(ped, component.component_id, component.drawable, component.texture, 0)
+        -- Use collection-based native to prevent clothing shifting
+        -- Get the collection info for the current drawable
+        local collectionName = GetPedDrawableVariationCollectionName(ped, component.component_id, component.drawable)
+        local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, component.component_id, component.drawable)
+        
+        if collectionName and localIndex >= 0 then
+            -- Use collection-based native
+            SetPedCollectionComponentVariation(ped, component.component_id, collectionName, localIndex, component.texture, 0)
+        else
+            -- Fallback to traditional method if collection info unavailable
+            SetPedComponentVariation(ped, component.component_id, component.drawable, component.texture, 0)
+        end
     end
 end
 
@@ -314,7 +325,17 @@ local function setPedProp(ped, prop)
         if prop.drawable == -1 then
             ClearPedProp(ped, prop.prop_id)
         else
-            SetPedPropIndex(ped, prop.prop_id, prop.drawable, prop.texture, false)
+            -- Use collection-based native for props
+            local collectionName = GetPedPropCollectionName(ped, prop.prop_id, prop.drawable)
+            local localIndex = GetPedPropCollectionLocalIndex(ped, prop.prop_id, prop.drawable)
+            
+            if collectionName and localIndex >= 0 then
+                -- Use collection-based native
+                SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, localIndex, prop.texture, false)
+            else
+                -- Fallback to traditional method
+                SetPedPropIndex(ped, prop.prop_id, prop.drawable, prop.texture, false)
+            end
         end
     end
 end
