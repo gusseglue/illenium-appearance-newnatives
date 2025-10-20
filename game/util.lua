@@ -1,6 +1,8 @@
 local hashesComputed = false
 local PED_TATTOOS = {}
 local pedModelsByHash = {}
+local getComponentCollectionData
+local getPropCollectionData
 
 local function tofloat(num)
     return num + 0.0
@@ -327,7 +329,7 @@ local function setPedEyeColor(ped, eyeColor)
     end
 end
 
-local function getComponentCollectionData(ped, componentId, drawable)
+getComponentCollectionData = function(ped, componentId, drawable)
     if not drawable or drawable < 0 then
         return nil, nil
     end
@@ -343,7 +345,7 @@ local function getComponentCollectionData(ped, componentId, drawable)
     return nil, nil
 end
 
-local function getPropCollectionData(ped, propId, drawable)
+getPropCollectionData = function(ped, propId, drawable)
     if not drawable or drawable < 0 then
         return nil, nil
     end
