@@ -24,7 +24,12 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-skin", f
         lib.requestModel(model, 1000)
         SetPlayerModel(cache.playerId, model)
         Wait(150)
-        SetPedComponentVariation(cache.ped, 0, 0, 0, 2)
+        local collectionsCount = GetPedCollectionsCount(cache.ped)
+        if collectionsCount and collectionsCount > 0 then
+            SetPedCollectionComponentVariation(cache.ped, 0, '', 0, 0, 2)
+        else
+            SetPedComponentVariation(cache.ped, 0, 0, 0, 2)
+        end
         TriggerEvent("illenium-appearance:client:migration:load-qb-clothing-clothes", playerSkin, cache.ped)
         SetModelAsNoLongerNeeded(model)
     end)
@@ -34,8 +39,14 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     local data = json.decode(playerSkin.skin)
     if ped == nil then ped = cache.ped end
 
+    local collectionsCount = GetPedCollectionsCount(ped)
+
     for i = 0, 11 do
-        SetPedComponentVariation(ped, i, 0, 0, 0)
+        if collectionsCount and collectionsCount > 0 then
+            SetPedCollectionComponentVariation(ped, i, '', 0, 0, 0)
+        else
+            SetPedComponentVariation(ped, i, 0, 0, 0)
+        end
     end
 
     for i = 0, 7 do
@@ -53,11 +64,33 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadBlendData(ped, data["face"].item, data["face2"].item, nil, data["face"].texture, data["face2"].texture, nil, data["facemix"].shapeMix, data["facemix"].skinMix, nil, true)
 
     -- Pants
-    SetPedComponentVariation(ped, 4, data["pants"].item, 0, 0)
-    SetPedComponentVariation(ped, 4, data["pants"].item, data["pants"].texture, 0)
+    do
+        local pants = data["pants"]
+        if pants then
+            local collectionName, localIndex = client.getComponentCollectionData(ped, 4, pants.item)
+            if collectionName ~= nil and localIndex ~= nil then
+                SetPedCollectionComponentVariation(ped, 4, collectionName, localIndex, 0, 0)
+                SetPedCollectionComponentVariation(ped, 4, collectionName, localIndex, pants.texture or 0, 0)
+            elseif not collectionsCount or collectionsCount <= 0 then
+                SetPedComponentVariation(ped, 4, pants.item, 0, 0)
+                SetPedComponentVariation(ped, 4, pants.item, pants.texture, 0)
+            end
+        end
+    end
 
     -- Hair
-    SetPedComponentVariation(ped, 2, data["hair"].item, 0, 0)
+    do
+        local hair = data["hair"]
+        if hair then
+            local collectionName, localIndex = client.getComponentCollectionData(ped, 2, hair.item)
+            if collectionName ~= nil and localIndex ~= nil then
+                SetPedCollectionComponentVariation(ped, 2, collectionName, localIndex, 0, 0)
+                SetPedCollectionComponentVariation(ped, 2, collectionName, localIndex, hair.texture or 0, 0)
+            elseif not collectionsCount or collectionsCount <= 0 then
+                SetPedComponentVariation(ped, 2, hair.item, 0, 0)
+            end
+        end
+    end
     SetPedHairColor(ped, data["hair"].texture, data["hair"].texture)
 
     -- Eyebrows
@@ -106,8 +139,8 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
                 dataEntry.collection = resolvedCollection
                 dataEntry.collection_local_index = resolvedIndex
                 SetPedCollectionComponentVariation(ped, componentId, resolvedCollection, resolvedIndex, texture, 0)
-            else
-                -- Fallback to traditional method without double call
+            elseif not collectionsCount or collectionsCount <= 0 then
+                -- Fallback to traditional method without double call when collection natives are unavailable
                 SetPedComponentVariation(ped, componentId, drawable, texture, 0)
             end
         end
@@ -170,7 +203,7 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
                 dataEntry.collection = resolvedCollection
                 dataEntry.collection_local_index = resolvedIndex
                 SetPedCollectionPropIndex(ped, propId, resolvedCollection, resolvedIndex, texture, true)
-            else
+            elseif not collectionsCount or collectionsCount <= 0 then
                 dataEntry.collection = nil
                 dataEntry.collection_local_index = nil
                 -- Fallback to traditional method

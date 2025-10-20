@@ -20,6 +20,8 @@ function LoadJobOutfit(oData)
         data = json.decode(data)
     end
 
+    local collectionsCount = GetPedCollectionsCount(ped)
+
     -- Helper function to convert global index to collection-based and apply
     local function applyComponentWithCollection(componentId, dataEntry)
         if not dataEntry then return end
@@ -40,7 +42,7 @@ function LoadJobOutfit(oData)
                 dataEntry.collection = resolvedCollection
                 dataEntry.collection_local_index = resolvedIndex
                 SetPedCollectionComponentVariation(ped, componentId, resolvedCollection, resolvedIndex, texture, 0)
-            else
+            elseif not collectionsCount or collectionsCount <= 0 then
                 SetPedComponentVariation(ped, componentId, drawable, texture, 0)
             end
         end
@@ -121,7 +123,7 @@ function LoadJobOutfit(oData)
                     dataEntry.collection = resolvedCollection
                     dataEntry.collection_local_index = resolvedIndex
                     SetPedCollectionPropIndex(ped, propId, resolvedCollection, resolvedIndex, texture, true)
-                else
+                elseif not collectionsCount or collectionsCount <= 0 then
                     SetPedPropIndex(ped, propId, drawable, texture, true)
                 end
             end
