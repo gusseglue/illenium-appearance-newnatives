@@ -488,28 +488,9 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                -- Convert global index to collection-based approach
-                local collectionName = nil
-                local localIndex = -1
-                
-                local collectionsCount = GetPedCollectionsCount(cache.ped)
-                local currentGlobalIndex = 0
-                
-                for k = 0, collectionsCount - 1 do
-                    local currentCollectionName = GetPedCollectionName(cache.ped, k)
-                    local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(cache.ped, componentId, currentCollectionName)
-                    
-                    if applied.drawable >= currentGlobalIndex and applied.drawable < currentGlobalIndex + drawableVariationsCount then
-                        collectionName = currentCollectionName
-                        localIndex = applied.drawable - currentGlobalIndex
-                        break
-                    end
-                    
-                    currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
-                end
-                
-                -- Use collection-based native instead of flag 2 approach
-                if collectionName and localIndex >= 0 then
+                local collectionName, localIndex = client.getComponentCollectionData(cache.ped, componentId, applied.drawable)
+
+                if collectionName ~= nil and localIndex ~= nil then
                     SetPedCollectionComponentVariation(cache.ped, componentId, collectionName, localIndex, applied.texture, 0)
                 else
                     -- Fallback without double call
@@ -525,28 +506,9 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                -- Convert global prop index to collection-based approach
-                local collectionName = nil
-                local localIndex = -1
-                
-                local collectionsCount = GetPedCollectionsCount(cache.ped)
-                local currentGlobalIndex = 0
-                
-                for k = 0, collectionsCount - 1 do
-                    local currentCollectionName = GetPedCollectionName(cache.ped, k)
-                    local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(cache.ped, propId, currentCollectionName)
-                    
-                    if applied.drawable >= currentGlobalIndex and applied.drawable < currentGlobalIndex + propVariationsCount then
-                        collectionName = currentCollectionName
-                        localIndex = applied.drawable - currentGlobalIndex
-                        break
-                    end
-                    
-                    currentGlobalIndex = currentGlobalIndex + propVariationsCount
-                end
-                
-                -- Use collection-based native for props
-                if collectionName and localIndex >= 0 then
+                local collectionName, localIndex = client.getPropCollectionData(cache.ped, propId, applied.drawable)
+
+                if collectionName ~= nil and localIndex ~= nil then
                     SetPedCollectionPropIndex(cache.ped, propId, collectionName, localIndex, applied.texture, true)
                 else
                     -- Fallback to traditional method
@@ -574,28 +536,9 @@ local function removeClothes(typeClothes)
     -- Use collection-based approach for removing clothes as well
     for i = 1, #components do
         local component = components[i]
-        -- Convert global index to collection-based approach for removal component
-        local collectionName = nil
-        local localIndex = -1
-        
-        local collectionsCount = GetPedCollectionsCount(cache.ped)
-        local currentGlobalIndex = 0
-        
-        for k = 0, collectionsCount - 1 do
-            local currentCollectionName = GetPedCollectionName(cache.ped, k)
-            local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(cache.ped, component[1], currentCollectionName)
-            
-            if component[2] >= currentGlobalIndex and component[2] < currentGlobalIndex + drawableVariationsCount then
-                collectionName = currentCollectionName
-                localIndex = component[2] - currentGlobalIndex
-                break
-            end
-            
-            currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
-        end
-        
-        -- Use collection-based native for removing clothes
-        if collectionName and localIndex >= 0 then
+        local collectionName, localIndex = client.getComponentCollectionData(cache.ped, component[1], component[2])
+
+        if collectionName ~= nil and localIndex ~= nil then
             SetPedCollectionComponentVariation(cache.ped, component[1], collectionName, localIndex, 0, 0)
         else
             -- Fallback without flag 2

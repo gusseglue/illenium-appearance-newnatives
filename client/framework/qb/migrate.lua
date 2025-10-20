@@ -86,27 +86,13 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
 
     -- Helper function to convert global component index to collection-based and apply
     local function applyComponentWithCollection(componentId, drawable, texture)
-        local collectionName = nil
-        local localIndex = -1
-        
-        local collectionsCount = GetPedCollectionsCount(ped)
-        local currentGlobalIndex = 0
-        
-        for i = 0, collectionsCount - 1 do
-            local currentCollectionName = GetPedCollectionName(ped, i)
-            local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(ped, componentId, currentCollectionName)
-            
-            if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + drawableVariationsCount then
-                collectionName = currentCollectionName
-                localIndex = drawable - currentGlobalIndex
-                break
-            end
-            
-            currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
+        if drawable == nil then
+            return
         end
-        
-        -- Use collection-based native to prevent clothing shifting
-        if collectionName and localIndex >= 0 then
+
+        local collectionName, localIndex = client.getComponentCollectionData(ped, componentId, drawable)
+
+        if collectionName ~= nil and localIndex ~= nil then
             SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
         else
             -- Fallback to traditional method without double call
@@ -143,35 +129,18 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
 
     -- Helper function to convert global prop index to collection-based and apply
     local function applyPropWithCollection(propId, drawable, texture)
-        if drawable ~= -1 and drawable ~= 0 then
-            local collectionName = nil
-            local localIndex = -1
-            
-            local collectionsCount = GetPedCollectionsCount(ped)
-            local currentGlobalIndex = 0
-            
-            for i = 0, collectionsCount - 1 do
-                local currentCollectionName = GetPedCollectionName(ped, i)
-                local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(ped, propId, currentCollectionName)
-                
-                if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + propVariationsCount then
-                    collectionName = currentCollectionName
-                    localIndex = drawable - currentGlobalIndex
-                    break
-                end
-                
-                currentGlobalIndex = currentGlobalIndex + propVariationsCount
-            end
-            
-            -- Use collection-based native to prevent prop shifting
-            if collectionName and localIndex >= 0 then
-                SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
-            else
-                -- Fallback to traditional method
-                SetPedPropIndex(ped, propId, drawable, texture, true)
-            end
-        else
+        if drawable == -1 or drawable == 0 then
             ClearPedProp(ped, propId)
+            return
+        end
+
+        local collectionName, localIndex = client.getPropCollectionData(ped, propId, drawable)
+
+        if collectionName ~= nil and localIndex ~= nil then
+            SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
+        else
+            -- Fallback to traditional method
+            SetPedPropIndex(ped, propId, drawable, texture, true)
         end
     end
     

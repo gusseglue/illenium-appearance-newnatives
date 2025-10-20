@@ -291,36 +291,47 @@ local function setPedEyeColor(ped, eyeColor)
     end
 end
 
+local function getComponentCollectionData(ped, componentId, drawable)
+    if not drawable or drawable < 0 then
+        return nil, nil
+    end
+
+    local collectionName = GetPedCollectionNameFromDrawable(ped, componentId, drawable)
+    if collectionName ~= nil then
+        local localIndex = GetPedCollectionLocalIndexFromDrawable(ped, componentId, drawable)
+        if localIndex ~= nil and localIndex >= 0 then
+            return collectionName, localIndex
+        end
+    end
+
+    return nil, nil
+end
+
+local function getPropCollectionData(ped, propId, drawable)
+    if not drawable or drawable < 0 then
+        return nil, nil
+    end
+
+    local collectionName = GetPedCollectionNameFromProp(ped, propId, drawable)
+    if collectionName ~= nil then
+        local localIndex = GetPedCollectionLocalIndexFromProp(ped, propId, drawable)
+        if localIndex ~= nil and localIndex >= 0 then
+            return collectionName, localIndex
+        end
+    end
+
+    return nil, nil
+end
+
 local function setPedComponent(ped, component)
     if component then
         if isPedFreemodeModel(ped) and (component.component_id == 0 or component.component_id == 2) then
             return
         end
 
-        -- Convert global index to collection-based approach to prevent clothing shifting
-        -- Find which collection contains this global drawable index
-        local collectionName = nil
-        local localIndex = -1
-        
-        local collectionsCount = GetPedCollectionsCount(ped)
-        local currentGlobalIndex = 0
-        
-        for i = 0, collectionsCount - 1 do
-            local currentCollectionName = GetPedCollectionName(ped, i)
-            local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(ped, component.component_id, currentCollectionName)
-            
-            -- Check if our global drawable index falls within this collection's range
-            if component.drawable >= currentGlobalIndex and component.drawable < currentGlobalIndex + drawableVariationsCount then
-                collectionName = currentCollectionName
-                localIndex = component.drawable - currentGlobalIndex
-                break
-            end
-            
-            currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
-        end
-        
-        -- Use collection-based native to prevent clothing shifting
-        if collectionName and localIndex >= 0 then
+        local collectionName, localIndex = getComponentCollectionData(ped, component.component_id, component.drawable)
+
+        if collectionName ~= nil and localIndex ~= nil then
             SetPedCollectionComponentVariation(ped, component.component_id, collectionName, localIndex, component.texture, 0)
         else
             -- Fallback to traditional method if collection mapping fails
@@ -342,29 +353,9 @@ local function setPedProp(ped, prop)
         if prop.drawable == -1 then
             ClearPedProp(ped, prop.prop_id)
         else
-            -- Convert global prop index to collection-based approach
-            local collectionName = nil
-            local localIndex = -1
-            
-            local collectionsCount = GetPedCollectionsCount(ped)
-            local currentGlobalIndex = 0
-            
-            for i = 0, collectionsCount - 1 do
-                local currentCollectionName = GetPedCollectionName(ped, i)
-                local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(ped, prop.prop_id, currentCollectionName)
-                
-                -- Check if our global prop index falls within this collection's range
-                if prop.drawable >= currentGlobalIndex and prop.drawable < currentGlobalIndex + propVariationsCount then
-                    collectionName = currentCollectionName
-                    localIndex = prop.drawable - currentGlobalIndex
-                    break
-                end
-                
-                currentGlobalIndex = currentGlobalIndex + propVariationsCount
-            end
-            
-            -- Use collection-based native to prevent prop shifting
-            if collectionName and localIndex >= 0 then
+            local collectionName, localIndex = getPropCollectionData(ped, prop.prop_id, prop.drawable)
+
+            if collectionName ~= nil and localIndex ~= nil then
                 SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, localIndex, prop.texture, false)
             else
                 -- Fallback to traditional method if collection mapping fails
@@ -463,6 +454,8 @@ exports("setPedComponent", setPedComponent)
 exports("setPedComponents", setPedComponents)
 exports("setPedProp", setPedProp)
 exports("setPedProps", setPedProps)
+exports("getComponentCollectionData", getComponentCollectionData)
+exports("getPropCollectionData", getPropCollectionData)
 exports("setPlayerAppearance", setPlayerAppearance)
 exports("setPedAppearance", setPedAppearance)
 exports("setPedTattoos", setPedTattoos)
@@ -490,5 +483,7 @@ client = {
     setPedComponents = setPedComponents,
     setPedProps = setPedProps,
     getPedComponents = getPedComponents,
-    getPedProps = getPedProps
+    getPedProps = getPedProps,
+    getComponentCollectionData = getComponentCollectionData,
+    getPropCollectionData = getPropCollectionData
 }

@@ -23,27 +23,9 @@ function LoadJobOutfit(oData)
     -- Helper function to convert global index to collection-based and apply
     local function applyComponentWithCollection(componentId, drawable, texture)
         if drawable ~= nil then
-            local collectionName = nil
-            local localIndex = -1
-            
-            local collectionsCount = GetPedCollectionsCount(ped)
-            local currentGlobalIndex = 0
-            
-            for i = 0, collectionsCount - 1 do
-                local currentCollectionName = GetPedCollectionName(ped, i)
-                local drawableVariationsCount = GetNumberOfPedCollectionDrawableVariations(ped, componentId, currentCollectionName)
-                
-                if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + drawableVariationsCount then
-                    collectionName = currentCollectionName
-                    localIndex = drawable - currentGlobalIndex
-                    break
-                end
-                
-                currentGlobalIndex = currentGlobalIndex + drawableVariationsCount
-            end
-            
-            -- Use collection-based native to prevent clothing shifting
-            if collectionName and localIndex >= 0 then
+            local collectionName, localIndex = client.getComponentCollectionData(ped, componentId, drawable)
+
+            if collectionName ~= nil and localIndex ~= nil then
                 SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
             else
                 SetPedComponentVariation(ped, componentId, drawable, texture, 0)
@@ -105,27 +87,9 @@ function LoadJobOutfit(oData)
     -- Helper function to convert global prop index to collection-based and apply
     local function applyPropWithCollection(propId, drawable, texture)
         if drawable ~= nil and drawable ~= -1 and drawable ~= 0 then
-            local collectionName = nil
-            local localIndex = -1
-            
-            local collectionsCount = GetPedCollectionsCount(ped)
-            local currentGlobalIndex = 0
-            
-            for i = 0, collectionsCount - 1 do
-                local currentCollectionName = GetPedCollectionName(ped, i)
-                local propVariationsCount = GetNumberOfPedCollectionPropDrawableVariations(ped, propId, currentCollectionName)
-                
-                if drawable >= currentGlobalIndex and drawable < currentGlobalIndex + propVariationsCount then
-                    collectionName = currentCollectionName
-                    localIndex = drawable - currentGlobalIndex
-                    break
-                end
-                
-                currentGlobalIndex = currentGlobalIndex + propVariationsCount
-            end
-            
-            -- Use collection-based native for props
-            if collectionName and localIndex >= 0 then
+            local collectionName, localIndex = client.getPropCollectionData(ped, propId, drawable)
+
+            if collectionName ~= nil and localIndex ~= nil then
                 SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
             else
                 SetPedPropIndex(ped, propId, drawable, texture, true)
