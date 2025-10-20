@@ -488,13 +488,26 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                local collectionName, localIndex = client.getComponentCollectionData(cache.ped, componentId, applied.drawable)
+                local collectionName = applied.collection or applied.collectionName
+                local localIndex = applied.collection_local_index or applied.collectionLocalIndex
+
+                local texture = applied.texture or 0
 
                 if collectionName ~= nil and localIndex ~= nil then
-                    SetPedCollectionComponentVariation(cache.ped, componentId, collectionName, localIndex, applied.texture, 0)
+                    applied.collection = collectionName
+                    applied.collection_local_index = localIndex
+                    SetPedCollectionComponentVariation(cache.ped, componentId, collectionName, localIndex, texture, 0)
                 else
-                    -- Fallback without double call
-                    SetPedComponentVariation(cache.ped, componentId, applied.drawable, applied.texture, 0)
+                    local resolvedCollection, resolvedIndex = client.getComponentCollectionData(cache.ped, componentId, applied.drawable)
+
+                    if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                        applied.collection = resolvedCollection
+                        applied.collection_local_index = resolvedIndex
+                        SetPedCollectionComponentVariation(cache.ped, componentId, resolvedCollection, resolvedIndex, texture, 0)
+                    else
+                        -- Fallback without double call
+                        SetPedComponentVariation(cache.ped, componentId, applied.drawable, texture, 0)
+                    end
                 end
             end
         end
@@ -506,13 +519,26 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                local collectionName, localIndex = client.getPropCollectionData(cache.ped, propId, applied.drawable)
+                local collectionName = applied.collection or applied.collectionName
+                local localIndex = applied.collection_local_index or applied.collectionLocalIndex
+
+                local texture = applied.texture or 0
 
                 if collectionName ~= nil and localIndex ~= nil then
-                    SetPedCollectionPropIndex(cache.ped, propId, collectionName, localIndex, applied.texture, true)
+                    applied.collection = collectionName
+                    applied.collection_local_index = localIndex
+                    SetPedCollectionPropIndex(cache.ped, propId, collectionName, localIndex, texture, true)
                 else
-                    -- Fallback to traditional method
-                    SetPedPropIndex(cache.ped, propId, applied.drawable, applied.texture, true)
+                    local resolvedCollection, resolvedIndex = client.getPropCollectionData(cache.ped, propId, applied.drawable)
+
+                    if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                        applied.collection = resolvedCollection
+                        applied.collection_local_index = resolvedIndex
+                        SetPedCollectionPropIndex(cache.ped, propId, resolvedCollection, resolvedIndex, texture, true)
+                    else
+                        -- Fallback to traditional method
+                        SetPedPropIndex(cache.ped, propId, applied.drawable, texture, true)
+                    end
                 end
             end
         end

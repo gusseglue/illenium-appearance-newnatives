@@ -39,10 +39,16 @@ local function getPedComponents(ped)
 
     for i = 1, size do
         local componentId = constants.PED_COMPONENTS_IDS[i]
+        local drawable = GetPedDrawableVariation(ped, componentId)
+        local texture = GetPedTextureVariation(ped, componentId)
+        local collectionName, localIndex = getComponentCollectionData(ped, componentId, drawable)
+
         components[i] = {
             component_id = componentId,
-            drawable = GetPedDrawableVariation(ped, componentId),
-            texture = GetPedTextureVariation(ped, componentId),
+            drawable = drawable,
+            texture = texture,
+            collection = collectionName or nil,
+            collection_local_index = localIndex or nil,
         }
     end
 
@@ -57,10 +63,16 @@ local function getPedProps(ped)
 
     for i = 1, size do
         local propId = constants.PED_PROPS_IDS[i]
+        local drawable = GetPedPropIndex(ped, propId)
+        local texture = GetPedPropTextureIndex(ped, propId)
+        local collectionName, localIndex = getPropCollectionData(ped, propId, drawable)
+
         props[i] = {
             prop_id = propId,
-            drawable = GetPedPropIndex(ped, propId),
-            texture = GetPedPropTextureIndex(ped, propId),
+            drawable = drawable,
+            texture = texture,
+            collection = collectionName or nil,
+            collection_local_index = localIndex or nil,
         }
     end
     return props
@@ -145,11 +157,17 @@ end
 ---@param ped number entity id
 ---@return table<string, number>
 local function getPedHair(ped)
+    local style = GetPedDrawableVariation(ped, 2)
+    local texture = GetPedTextureVariation(ped, 2)
+    local collectionName, localIndex = getComponentCollectionData(ped, 2, style)
+
     return {
-        style = GetPedDrawableVariation(ped, 2),
+        style = style,
         color = GetPedHairColor(ped),
         highlight = GetPedHairHighlightColor(ped),
-        texture = GetPedTextureVariation(ped, 2)
+        texture = texture,
+        collection = collectionName or nil,
+        collection_local_index = localIndex or nil,
     }
 end
 
@@ -277,8 +295,26 @@ end
 
 local function setPedHair(ped, hair, tattoos)
     if hair then
-        SetPedComponentVariation(ped, 2, hair.style, hair.texture, 0)
-        SetPedHairColor(ped, hair.color, hair.highlight)
+        local collectionName = hair.collection or hair.collectionName
+        local localIndex = hair.collection_local_index or hair.collectionLocalIndex
+
+        local texture = hair.texture or 0
+
+        if collectionName ~= nil and localIndex ~= nil then
+            hair.collection = collectionName
+            hair.collection_local_index = localIndex
+            SetPedCollectionComponentVariation(ped, 2, collectionName, localIndex, texture, 0)
+        else
+            SetPedComponentVariation(ped, 2, hair.style or 0, texture, 0)
+
+            local resolvedCollection, resolvedIndex = getComponentCollectionData(ped, 2, hair.style)
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                hair.collection = resolvedCollection
+                hair.collection_local_index = resolvedIndex
+            end
+        end
+
+        SetPedHairColor(ped, hair.color or 0, hair.highlight or 0)
         if isPedFreemodeModel(ped) then
             setTattoos(ped, tattoos or PED_TATTOOS, hair.style)
         end
@@ -329,13 +365,26 @@ local function setPedComponent(ped, component)
             return
         end
 
-        local collectionName, localIndex = getComponentCollectionData(ped, component.component_id, component.drawable)
+        local collectionName = component.collection or component.collectionName
+        local localIndex = component.collection_local_index or component.collectionLocalIndex
+
+        local texture = component.texture or 0
 
         if collectionName ~= nil and localIndex ~= nil then
-            SetPedCollectionComponentVariation(ped, component.component_id, collectionName, localIndex, component.texture, 0)
-        else
-            -- Fallback to traditional method if collection mapping fails
-            SetPedComponentVariation(ped, component.component_id, component.drawable, component.texture, 0)
+            component.collection = collectionName
+            component.collection_local_index = localIndex
+            SetPedCollectionComponentVariation(ped, component.component_id, collectionName, localIndex, texture, 0)
+        elseif component.drawable ~= nil then
+            local resolvedCollection, resolvedIndex = getComponentCollectionData(ped, component.component_id, component.drawable)
+
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                component.collection = resolvedCollection
+                component.collection_local_index = resolvedIndex
+                SetPedCollectionComponentVariation(ped, component.component_id, resolvedCollection, resolvedIndex, texture, 0)
+            else
+                -- Fallback to traditional method if collection mapping fails
+                SetPedComponentVariation(ped, component.component_id, component.drawable, texture, 0)
+            end
         end
     end
 end
@@ -352,14 +401,29 @@ local function setPedProp(ped, prop)
     if prop then
         if prop.drawable == -1 then
             ClearPedProp(ped, prop.prop_id)
+            prop.collection = nil
+            prop.collection_local_index = nil
         else
-            local collectionName, localIndex = getPropCollectionData(ped, prop.prop_id, prop.drawable)
+            local collectionName = prop.collection or prop.collectionName
+            local localIndex = prop.collection_local_index or prop.collectionLocalIndex
+
+            local texture = prop.texture or 0
 
             if collectionName ~= nil and localIndex ~= nil then
-                SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, localIndex, prop.texture, false)
-            else
-                -- Fallback to traditional method if collection mapping fails
-                SetPedPropIndex(ped, prop.prop_id, prop.drawable, prop.texture, false)
+                prop.collection = collectionName
+                prop.collection_local_index = localIndex
+                SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, localIndex, texture, false)
+            elseif prop.drawable ~= nil then
+                local resolvedCollection, resolvedIndex = getPropCollectionData(ped, prop.prop_id, prop.drawable)
+
+                if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                    prop.collection = resolvedCollection
+                    prop.collection_local_index = resolvedIndex
+                    SetPedCollectionPropIndex(ped, prop.prop_id, resolvedCollection, resolvedIndex, texture, false)
+                else
+                    -- Fallback to traditional method if collection mapping fails
+                    SetPedPropIndex(ped, prop.prop_id, prop.drawable, texture, false)
+                end
             end
         end
     end

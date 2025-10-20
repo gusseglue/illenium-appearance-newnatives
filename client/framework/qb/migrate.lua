@@ -85,79 +85,114 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadOverlayColor(ped, 3, 1, data["ageing"].texture, 0)
 
     -- Helper function to convert global component index to collection-based and apply
-    local function applyComponentWithCollection(componentId, drawable, texture)
-        if drawable == nil then
+    local function applyComponentWithCollection(componentId, dataEntry)
+        if not dataEntry then
             return
         end
 
-        local collectionName, localIndex = client.getComponentCollectionData(ped, componentId, drawable)
+        local drawable = dataEntry.item or dataEntry.drawable
+        local texture = dataEntry.texture or 0
+        local collectionName = dataEntry.collection or dataEntry.collectionName
+        local localIndex = dataEntry.collection_local_index or dataEntry.collectionLocalIndex
 
         if collectionName ~= nil and localIndex ~= nil then
+            dataEntry.collection = collectionName
+            dataEntry.collection_local_index = localIndex
             SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
-        else
-            -- Fallback to traditional method without double call
-            SetPedComponentVariation(ped, componentId, drawable, texture, 0)
+        elseif drawable ~= nil then
+            local resolvedCollection, resolvedIndex = client.getComponentCollectionData(ped, componentId, drawable)
+
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                dataEntry.collection = resolvedCollection
+                dataEntry.collection_local_index = resolvedIndex
+                SetPedCollectionComponentVariation(ped, componentId, resolvedCollection, resolvedIndex, texture, 0)
+            else
+                -- Fallback to traditional method without double call
+                SetPedComponentVariation(ped, componentId, drawable, texture, 0)
+            end
         end
     end
     
     -- Arms
-    applyComponentWithCollection(3, data["arms"].item, data["arms"].texture)
+    applyComponentWithCollection(3, data["arms"])
 
     -- T-Shirt
-    applyComponentWithCollection(8, data["t-shirt"].item, data["t-shirt"].texture)
+    applyComponentWithCollection(8, data["t-shirt"])
 
     -- Vest
-    applyComponentWithCollection(9, data["vest"].item, data["vest"].texture)
+    applyComponentWithCollection(9, data["vest"])
 
     -- Torso 2
-    applyComponentWithCollection(11, data["torso2"].item, data["torso2"].texture)
+    applyComponentWithCollection(11, data["torso2"])
 
     -- Shoes
-    applyComponentWithCollection(6, data["shoes"].item, data["shoes"].texture)
+    applyComponentWithCollection(6, data["shoes"])
 
     -- Mask
-    applyComponentWithCollection(1, data["mask"].item, data["mask"].texture)
+    applyComponentWithCollection(1, data["mask"])
 
     -- Badge
-    applyComponentWithCollection(10, data["decals"].item, data["decals"].texture)
+    applyComponentWithCollection(10, data["decals"])
 
     -- Accessory
-    applyComponentWithCollection(7, data["accessory"].item, data["accessory"].texture)
+    applyComponentWithCollection(7, data["accessory"])
 
     -- Bag
-    applyComponentWithCollection(5, data["bag"].item, data["bag"].texture)
+    applyComponentWithCollection(5, data["bag"])
 
     -- Helper function to convert global prop index to collection-based and apply
-    local function applyPropWithCollection(propId, drawable, texture)
-        if drawable == -1 or drawable == 0 then
+    local function applyPropWithCollection(propId, dataEntry)
+        if not dataEntry then
             ClearPedProp(ped, propId)
             return
         end
 
-        local collectionName, localIndex = client.getPropCollectionData(ped, propId, drawable)
+        local drawable = dataEntry.item or dataEntry.drawable
+        local texture = dataEntry.texture or 0
+        local collectionName = dataEntry.collection or dataEntry.collectionName
+        local localIndex = dataEntry.collection_local_index or dataEntry.collectionLocalIndex
+
+        if drawable == -1 or drawable == 0 then
+            dataEntry.collection = nil
+            dataEntry.collection_local_index = nil
+            ClearPedProp(ped, propId)
+            return
+        end
 
         if collectionName ~= nil and localIndex ~= nil then
+            dataEntry.collection = collectionName
+            dataEntry.collection_local_index = localIndex
             SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
         else
-            -- Fallback to traditional method
-            SetPedPropIndex(ped, propId, drawable, texture, true)
+            local resolvedCollection, resolvedIndex = client.getPropCollectionData(ped, propId, drawable)
+
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                dataEntry.collection = resolvedCollection
+                dataEntry.collection_local_index = resolvedIndex
+                SetPedCollectionPropIndex(ped, propId, resolvedCollection, resolvedIndex, texture, true)
+            else
+                dataEntry.collection = nil
+                dataEntry.collection_local_index = nil
+                -- Fallback to traditional method
+                SetPedPropIndex(ped, propId, drawable, texture, true)
+            end
         end
     end
     
     -- Hat
-    applyPropWithCollection(0, data["hat"].item, data["hat"].texture)
+    applyPropWithCollection(0, data["hat"])
 
     -- Glass
-    applyPropWithCollection(1, data["glass"].item, data["glass"].texture)
+    applyPropWithCollection(1, data["glass"])
 
     -- Ear
-    applyPropWithCollection(2, data["ear"].item, data["ear"].texture)
+    applyPropWithCollection(2, data["ear"])
 
     -- Watch
-    applyPropWithCollection(6, data["watch"].item, data["watch"].texture)
+    applyPropWithCollection(6, data["watch"])
 
     -- Bracelet
-    applyPropWithCollection(7, data["bracelet"].item, data["bracelet"].texture)
+    applyPropWithCollection(7, data["bracelet"])
 
     if data["eye_color"].item ~= -1 and data["eye_color"].item ~= 0 then
         SetPedEyeColor(ped, data["eye_color"].item)
