@@ -158,6 +158,31 @@ end
 
 local function getComponentSettings(ped, componentId)
     local drawableId = GetPedDrawableVariation(ped, componentId)
+    local collectionName = GetPedDrawableVariationCollectionName(ped, componentId)
+    local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, componentId)
+
+    if collectionName == nil or localIndex == nil or localIndex < 0 then
+        collectionName, localIndex = client.getComponentCollectionData(ped, componentId, drawableId)
+    end
+
+    local totalDrawables = 0
+    local collectionsCount = GetPedCollectionsCount(ped)
+    if collectionsCount and collectionsCount > 0 then
+        for i = 0, collectionsCount - 1 do
+            local name = GetPedCollectionName(ped, i) or ""
+            totalDrawables = totalDrawables + (GetNumberOfPedCollectionDrawableVariations(ped, componentId, name) or 0)
+        end
+    else
+        totalDrawables = GetNumberOfPedDrawableVariations(ped, componentId) or 0
+    end
+
+    local textureCount = 0
+    if collectionName ~= nil and localIndex ~= nil and localIndex >= 0 then
+        textureCount = GetNumberOfPedCollectionTextureVariations(ped, componentId, collectionName, localIndex) or 0
+    elseif drawableId and drawableId >= 0 then
+        textureCount = GetNumberOfPedTextureVariations(ped, componentId, drawableId) or 0
+    end
+
     local gender = client.getPedDecorationType()
 
     local blacklistSettings = {
@@ -173,11 +198,11 @@ local function getComponentSettings(ped, componentId)
         component_id = componentId,
         drawable = {
             min = 0,
-            max = GetNumberOfPedDrawableVariations(ped, componentId) - 1
+            max = math.max((totalDrawables or 0) - 1, 0)
         },
         texture = {
             min = 0,
-            max = GetNumberOfPedTextureVariations(ped, componentId, drawableId) - 1
+            max = math.max((textureCount or 0) - 1, 0)
         },
         blacklist = blacklistSettings
     }
@@ -186,6 +211,31 @@ client.getComponentSettings = getComponentSettings
 
 local function getPropSettings(ped, propId)
     local drawableId = GetPedPropIndex(ped, propId)
+    local collectionName = GetPedPropCollectionName(ped, propId)
+    local localIndex = GetPedPropCollectionLocalIndex(ped, propId)
+
+    if collectionName == nil or localIndex == nil or localIndex < 0 then
+        collectionName, localIndex = client.getPropCollectionData(ped, propId, drawableId)
+    end
+
+    local totalDrawables = 0
+    local collectionsCount = GetPedCollectionsCount(ped)
+    if collectionsCount and collectionsCount > 0 then
+        for i = 0, collectionsCount - 1 do
+            local name = GetPedCollectionName(ped, i) or ""
+            totalDrawables = totalDrawables + (GetNumberOfPedCollectionPropDrawableVariations(ped, propId, name) or 0)
+        end
+    else
+        totalDrawables = GetNumberOfPedPropDrawableVariations(ped, propId) or 0
+    end
+
+    local textureCount = 0
+    if collectionName ~= nil and localIndex ~= nil and localIndex >= 0 then
+        textureCount = GetNumberOfPedCollectionPropTextureVariations(ped, propId, collectionName, localIndex) or 0
+    elseif drawableId and drawableId >= 0 then
+        textureCount = GetNumberOfPedPropTextureVariations(ped, propId, drawableId) or 0
+    end
+
     local gender = client.getPedDecorationType()
 
     local blacklistSettings = {
@@ -201,11 +251,11 @@ local function getPropSettings(ped, propId)
         prop_id = propId,
         drawable = {
             min = -1,
-            max = GetNumberOfPedPropDrawableVariations(ped, propId) - 1
+            max = math.max((totalDrawables or 0) - 1, -1)
         },
         texture = {
             min = -1,
-            max = GetNumberOfPedPropTextureVariations(ped, propId, drawableId) - 1
+            max = math.max((textureCount or 0) - 1, -1)
         },
         blacklist = blacklistSettings
     }
@@ -228,7 +278,20 @@ local function getHairSettings(ped)
     local settings = {
         style = {
             min = 0,
-            max = GetNumberOfPedDrawableVariations(ped, 2) - 1
+            max = (function()
+                local totalDrawables = 0
+                local collectionsCount = GetPedCollectionsCount(ped)
+                if collectionsCount and collectionsCount > 0 then
+                    for i = 0, collectionsCount - 1 do
+                        local name = GetPedCollectionName(ped, i) or ""
+                        totalDrawables = totalDrawables + (GetNumberOfPedCollectionDrawableVariations(ped, 2, name) or 0)
+                    end
+                else
+                    totalDrawables = GetNumberOfPedDrawableVariations(ped, 2) or 0
+                end
+
+                return math.max(totalDrawables - 1, 0)
+            end)()
         },
         color = {
             items = colors.hair
@@ -238,7 +301,22 @@ local function getHairSettings(ped)
         },
         texture = {
             min = 0,
-            max = GetNumberOfPedTextureVariations(ped, 2, GetPedDrawableVariation(ped, 2)) - 1
+            max = (function()
+                local collectionName = GetPedDrawableVariationCollectionName(ped, 2)
+                local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, 2)
+
+                if collectionName == nil or localIndex == nil or localIndex < 0 then
+                    collectionName, localIndex = client.getComponentCollectionData(ped, 2, GetPedDrawableVariation(ped, 2))
+                end
+
+                if collectionName ~= nil and localIndex ~= nil and localIndex >= 0 then
+                    local textureCount = GetNumberOfPedCollectionTextureVariations(ped, 2, collectionName, localIndex) or 0
+                    return math.max(textureCount - 1, 0)
+                end
+
+                local fallbackTextureCount = GetNumberOfPedTextureVariations(ped, 2, GetPedDrawableVariation(ped, 2)) or 0
+                return math.max(fallbackTextureCount - 1, 0)
+            end)()
         },
         blacklist = blacklistSettings
     }
@@ -482,22 +560,66 @@ local function wearClothes(data, typeClothes)
         Wait(0)
     end
 
+    local collectionsCount = GetPedCollectionsCount(cache.ped)
+
+    -- Use collection-based natives for smoother clothing application
     for i = 1, #components do
         local componentId = components[i][1]
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                SetPedComponentVariation(cache.ped, componentId, applied.drawable, applied.texture, 2)
+                local collectionName = applied.collection or applied.collectionName
+                local localIndex = applied.collection_local_index or applied.collectionLocalIndex
+
+                local texture = applied.texture or 0
+
+                if collectionName ~= nil and localIndex ~= nil then
+                    applied.collection = collectionName
+                    applied.collection_local_index = localIndex
+                    SetPedCollectionComponentVariation(cache.ped, componentId, collectionName, localIndex, texture, 0)
+                else
+                    local resolvedCollection, resolvedIndex = client.getComponentCollectionData(cache.ped, componentId, applied.drawable)
+
+                    if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                        applied.collection = resolvedCollection
+                        applied.collection_local_index = resolvedIndex
+                        SetPedCollectionComponentVariation(cache.ped, componentId, resolvedCollection, resolvedIndex, texture, 0)
+                    elseif not collectionsCount or collectionsCount <= 0 then
+                        -- Fallback without double call when collection natives are unavailable
+                        SetPedComponentVariation(cache.ped, componentId, applied.drawable, texture, 0)
+                    end
+                end
             end
         end
     end
 
+    -- Use collection-based natives for props as well
     for i = 1, #props do
         local propId = props[i][1]
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                SetPedPropIndex(cache.ped, propId, applied.drawable, applied.texture, true)
+                local collectionName = applied.collection or applied.collectionName
+                local localIndex = applied.collection_local_index or applied.collectionLocalIndex
+
+                local texture = applied.texture or 0
+
+                if collectionName ~= nil and localIndex ~= nil then
+                    applied.collection = collectionName
+                    applied.collection_local_index = localIndex
+                    SetPedCollectionPropIndex(cache.ped, propId, collectionName, localIndex, texture, true)
+                else
+                    local resolvedCollection, resolvedIndex = client.getPropCollectionData(cache.ped, propId, applied.drawable)
+
+                    if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                        applied.collection = resolvedCollection
+                        applied.collection_local_index = resolvedIndex
+                        SetPedCollectionPropIndex(cache.ped, propId, resolvedCollection, resolvedIndex, texture, true)
+                    elseif not collectionsCount or collectionsCount <= 0 then
+                        -- Fallback to traditional method when collection natives are unavailable
+                        SetPedPropIndex(cache.ped, propId, applied.drawable, texture, true)
+                    end
+                end
             end
         end
     end
@@ -517,9 +639,19 @@ local function removeClothes(typeClothes)
         Wait(0)
     end
 
+    local collectionsCount = GetPedCollectionsCount(cache.ped)
+
+    -- Use collection-based approach for removing clothes as well
     for i = 1, #components do
         local component = components[i]
-        SetPedComponentVariation(cache.ped, component[1], component[2], 0, 2)
+        local collectionName, localIndex = client.getComponentCollectionData(cache.ped, component[1], component[2])
+
+        if collectionName ~= nil and localIndex ~= nil then
+            SetPedCollectionComponentVariation(cache.ped, component[1], collectionName, localIndex, 0, 0)
+        elseif not collectionsCount or collectionsCount <= 0 then
+            -- Fallback without flag 2 when collection natives are unavailable
+            SetPedComponentVariation(cache.ped, component[1], component[2], 0, 0)
+        end
     end
 
     for i = 1, #props do

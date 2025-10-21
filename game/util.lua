@@ -1,6 +1,8 @@
 local hashesComputed = false
 local PED_TATTOOS = {}
 local pedModelsByHash = {}
+local getComponentCollectionData
+local getPropCollectionData
 
 local function tofloat(num)
     return num + 0.0
@@ -39,10 +41,21 @@ local function getPedComponents(ped)
 
     for i = 1, size do
         local componentId = constants.PED_COMPONENTS_IDS[i]
+        local drawable = GetPedDrawableVariation(ped, componentId)
+        local texture = GetPedTextureVariation(ped, componentId)
+        local collectionName = GetPedDrawableVariationCollectionName(ped, componentId)
+        local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, componentId)
+
+        if collectionName == nil or localIndex == nil or localIndex < 0 then
+            collectionName, localIndex = getComponentCollectionData(ped, componentId, drawable)
+        end
+
         components[i] = {
             component_id = componentId,
-            drawable = GetPedDrawableVariation(ped, componentId),
-            texture = GetPedTextureVariation(ped, componentId),
+            drawable = drawable,
+            texture = texture,
+            collection = collectionName or nil,
+            collection_local_index = localIndex or nil,
         }
     end
 
@@ -57,10 +70,21 @@ local function getPedProps(ped)
 
     for i = 1, size do
         local propId = constants.PED_PROPS_IDS[i]
+        local drawable = GetPedPropIndex(ped, propId)
+        local texture = GetPedPropTextureIndex(ped, propId)
+        local collectionName = GetPedPropCollectionName(ped, propId)
+        local localIndex = GetPedPropCollectionLocalIndex(ped, propId)
+
+        if collectionName == nil or localIndex == nil or localIndex < 0 then
+            collectionName, localIndex = getPropCollectionData(ped, propId, drawable)
+        end
+
         props[i] = {
             prop_id = propId,
-            drawable = GetPedPropIndex(ped, propId),
-            texture = GetPedPropTextureIndex(ped, propId),
+            drawable = drawable,
+            texture = texture,
+            collection = collectionName or nil,
+            collection_local_index = localIndex or nil,
         }
     end
     return props
@@ -145,11 +169,22 @@ end
 ---@param ped number entity id
 ---@return table<string, number>
 local function getPedHair(ped)
+    local style = GetPedDrawableVariation(ped, 2)
+    local texture = GetPedTextureVariation(ped, 2)
+    local collectionName = GetPedDrawableVariationCollectionName(ped, 2)
+    local localIndex = GetPedDrawableVariationCollectionLocalIndex(ped, 2)
+
+    if collectionName == nil or localIndex == nil or localIndex < 0 then
+        collectionName, localIndex = getComponentCollectionData(ped, 2, style)
+    end
+
     return {
-        style = GetPedDrawableVariation(ped, 2),
+        style = style,
         color = GetPedHairColor(ped),
         highlight = GetPedHairHighlightColor(ped),
-        texture = GetPedTextureVariation(ped, 2)
+        texture = texture,
+        collection = collectionName or nil,
+        collection_local_index = localIndex or nil,
     }
 end
 
@@ -277,8 +312,29 @@ end
 
 local function setPedHair(ped, hair, tattoos)
     if hair then
-        SetPedComponentVariation(ped, 2, hair.style, hair.texture, 0)
-        SetPedHairColor(ped, hair.color, hair.highlight)
+        local collectionName = hair.collection or hair.collectionName
+        local localIndex = hair.collection_local_index or hair.collectionLocalIndex
+
+        local texture = hair.texture or 0
+
+        local collectionsCount = GetPedCollectionsCount(ped)
+
+        if collectionName ~= nil and localIndex ~= nil then
+            hair.collection = collectionName
+            hair.collection_local_index = localIndex
+            SetPedCollectionComponentVariation(ped, 2, collectionName, localIndex, texture, 0)
+        else
+            local resolvedCollection, resolvedIndex = getComponentCollectionData(ped, 2, hair.style)
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                hair.collection = resolvedCollection
+                hair.collection_local_index = resolvedIndex
+                SetPedCollectionComponentVariation(ped, 2, resolvedCollection, resolvedIndex, texture, 0)
+            elseif not collectionsCount or collectionsCount <= 0 then
+                SetPedComponentVariation(ped, 2, hair.style or 0, texture, 0)
+            end
+        end
+
+        SetPedHairColor(ped, hair.color or 0, hair.highlight or 0)
         if isPedFreemodeModel(ped) then
             setTattoos(ped, tattoos or PED_TATTOOS, hair.style)
         end
@@ -291,13 +347,98 @@ local function setPedEyeColor(ped, eyeColor)
     end
 end
 
+getComponentCollectionData = function(ped, componentId, drawable)
+    if not drawable or drawable < 0 then
+        return nil, nil
+    end
+
+    local collectionsCount = GetPedCollectionsCount(ped)
+    local remaining = drawable
+
+    if collectionsCount and collectionsCount > 0 then
+        for i = 0, collectionsCount - 1 do
+            local collectionName = GetPedCollectionName(ped, i) or ""
+            local drawablesInCollection = GetNumberOfPedCollectionDrawableVariations(ped, componentId, collectionName) or 0
+
+            if remaining < drawablesInCollection then
+                return collectionName, remaining
+            end
+
+            remaining = remaining - drawablesInCollection
+        end
+    end
+
+    local fallbackCollection = GetPedCollectionNameFromDrawable(ped, componentId, drawable)
+    if fallbackCollection ~= nil then
+        local fallbackIndex = GetPedCollectionLocalIndexFromDrawable(ped, componentId, drawable)
+        if fallbackIndex ~= nil and fallbackIndex >= 0 then
+            return fallbackCollection, fallbackIndex
+        end
+    end
+
+    return nil, nil
+end
+
+getPropCollectionData = function(ped, propId, drawable)
+    if not drawable or drawable < 0 then
+        return nil, nil
+    end
+
+    local collectionsCount = GetPedCollectionsCount(ped)
+    local remaining = drawable
+
+    if collectionsCount and collectionsCount > 0 then
+        for i = 0, collectionsCount - 1 do
+            local collectionName = GetPedCollectionName(ped, i) or ""
+            local drawablesInCollection = GetNumberOfPedCollectionPropDrawableVariations(ped, propId, collectionName) or 0
+
+            if remaining < drawablesInCollection then
+                return collectionName, remaining
+            end
+
+            remaining = remaining - drawablesInCollection
+        end
+    end
+
+    local fallbackCollection = GetPedCollectionNameFromProp(ped, propId, drawable)
+    if fallbackCollection ~= nil then
+        local fallbackIndex = GetPedCollectionLocalIndexFromProp(ped, propId, drawable)
+        if fallbackIndex ~= nil and fallbackIndex >= 0 then
+            return fallbackCollection, fallbackIndex
+        end
+    end
+
+    return nil, nil
+end
+
 local function setPedComponent(ped, component)
     if component then
         if isPedFreemodeModel(ped) and (component.component_id == 0 or component.component_id == 2) then
             return
         end
 
-        SetPedComponentVariation(ped, component.component_id, component.drawable, component.texture, 0)
+        local collectionName = component.collection or component.collectionName
+        local localIndex = component.collection_local_index or component.collectionLocalIndex
+
+        local texture = component.texture or 0
+        local collectionsCount = GetPedCollectionsCount(ped)
+
+        if collectionName ~= nil and localIndex ~= nil then
+            component.collection = collectionName
+            component.collection_local_index = localIndex
+            SetPedCollectionComponentVariation(ped, component.component_id, collectionName, localIndex, texture, 0)
+        elseif component.drawable ~= nil then
+            local resolvedCollection, resolvedIndex = getComponentCollectionData(ped, component.component_id, component.drawable)
+
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                component.collection = resolvedCollection
+                component.collection_local_index = resolvedIndex
+                SetPedCollectionComponentVariation(ped, component.component_id, resolvedCollection, resolvedIndex, texture, 0)
+            elseif not collectionsCount or collectionsCount <= 0 then
+                -- Fallback to traditional method if collection natives are unavailable
+                SetPedComponentVariation(ped, component.component_id, component.drawable, texture, 0)
+            end
+        end
     end
 end
 
@@ -313,8 +454,31 @@ local function setPedProp(ped, prop)
     if prop then
         if prop.drawable == -1 then
             ClearPedProp(ped, prop.prop_id)
+            prop.collection = nil
+            prop.collection_local_index = nil
         else
-            SetPedPropIndex(ped, prop.prop_id, prop.drawable, prop.texture, false)
+            local collectionName = prop.collection or prop.collectionName
+            local localIndex = prop.collection_local_index or prop.collectionLocalIndex
+
+            local texture = prop.texture or 0
+            local collectionsCount = GetPedCollectionsCount(ped)
+
+            if collectionName ~= nil and localIndex ~= nil then
+                prop.collection = collectionName
+                prop.collection_local_index = localIndex
+                SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, localIndex, texture, false)
+            elseif prop.drawable ~= nil then
+                local resolvedCollection, resolvedIndex = getPropCollectionData(ped, prop.prop_id, prop.drawable)
+
+                if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                    prop.collection = resolvedCollection
+                    prop.collection_local_index = resolvedIndex
+                    SetPedCollectionPropIndex(ped, prop.prop_id, resolvedCollection, resolvedIndex, texture, false)
+                elseif not collectionsCount or collectionsCount <= 0 then
+                    -- Fallback to traditional method if collection natives are unavailable
+                    SetPedPropIndex(ped, prop.prop_id, prop.drawable, texture, false)
+                end
+            end
         end
     end
 end
@@ -408,6 +572,8 @@ exports("setPedComponent", setPedComponent)
 exports("setPedComponents", setPedComponents)
 exports("setPedProp", setPedProp)
 exports("setPedProps", setPedProps)
+exports("getComponentCollectionData", getComponentCollectionData)
+exports("getPropCollectionData", getPropCollectionData)
 exports("setPlayerAppearance", setPlayerAppearance)
 exports("setPedAppearance", setPedAppearance)
 exports("setPedTattoos", setPedTattoos)
@@ -435,5 +601,7 @@ client = {
     setPedComponents = setPedComponents,
     setPedProps = setPedProps,
     getPedComponents = getPedComponents,
-    getPedProps = getPedProps
+    getPedProps = getPedProps,
+    getComponentCollectionData = getComponentCollectionData,
+    getPropCollectionData = getPropCollectionData
 }

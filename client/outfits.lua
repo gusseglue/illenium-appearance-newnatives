@@ -20,101 +20,128 @@ function LoadJobOutfit(oData)
         data = json.decode(data)
     end
 
-    -- Pants
-    if data["pants"] ~= nil then
-        SetPedComponentVariation(ped, 4, data["pants"].item, data["pants"].texture, 0)
+    local collectionsCount = GetPedCollectionsCount(ped)
+
+    -- Helper function to convert global index to collection-based and apply
+    local function applyComponentWithCollection(componentId, dataEntry)
+        if not dataEntry then return end
+
+        local drawable = dataEntry.item or dataEntry.drawable
+        local texture = dataEntry.texture or 0
+        local collectionName = dataEntry.collection or dataEntry.collectionName
+        local localIndex = dataEntry.collection_local_index or dataEntry.collectionLocalIndex
+
+        if collectionName ~= nil and localIndex ~= nil then
+            dataEntry.collection = collectionName
+            dataEntry.collection_local_index = localIndex
+            SetPedCollectionComponentVariation(ped, componentId, collectionName, localIndex, texture, 0)
+        elseif drawable ~= nil then
+            local resolvedCollection, resolvedIndex = client.getComponentCollectionData(ped, componentId, drawable)
+
+            if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                dataEntry.collection = resolvedCollection
+                dataEntry.collection_local_index = resolvedIndex
+                SetPedCollectionComponentVariation(ped, componentId, resolvedCollection, resolvedIndex, texture, 0)
+            elseif not collectionsCount or collectionsCount <= 0 then
+                SetPedComponentVariation(ped, componentId, drawable, texture, 0)
+            end
+        end
     end
+
+    -- Pants
+    applyComponentWithCollection(4, data["pants"])
 
     -- Arms
-    if data["arms"] ~= nil then
-        SetPedComponentVariation(ped, 3, data["arms"].item, data["arms"].texture, 0)
-    end
+    applyComponentWithCollection(3, data["arms"])
 
     -- T-Shirt
-    if data["t-shirt"] ~= nil then
-        SetPedComponentVariation(ped, 8, data["t-shirt"].item, data["t-shirt"].texture, 0)
-    end
+    applyComponentWithCollection(8, data["t-shirt"])
 
     -- Vest
-    if data["vest"] ~= nil then
-        SetPedComponentVariation(ped, 9, data["vest"].item, data["vest"].texture, 0)
-    end
+    applyComponentWithCollection(9, data["vest"])
 
     -- Torso 2
-    if data["torso2"] ~= nil then
-        SetPedComponentVariation(ped, 11, data["torso2"].item, data["torso2"].texture, 0)
-    end
+    applyComponentWithCollection(11, data["torso2"])
 
     -- Shoes
-    if data["shoes"] ~= nil then
-        SetPedComponentVariation(ped, 6, data["shoes"].item, data["shoes"].texture, 0)
-    end
+    applyComponentWithCollection(6, data["shoes"])
 
     -- Badge
-    if data["decals"] ~= nil then
-        SetPedComponentVariation(ped, 10, data["decals"].item, data["decals"].texture, 0)
-    end
+    applyComponentWithCollection(10, data["decals"])
 
     -- Accessory
     local tracker = Config.TrackerClothingOptions
 
     if data["accessory"] ~= nil then
         if Framework.HasTracker() then
-            SetPedComponentVariation(ped, 7, tracker.drawable, tracker.texture, 0)
+            applyComponentWithCollection(7, tracker)
         else
-            SetPedComponentVariation(ped, 7, data["accessory"].item, data["accessory"].texture, 0)
+            applyComponentWithCollection(7, data["accessory"])
         end
     else
         if Framework.HasTracker() then
-            SetPedComponentVariation(ped, 7, tracker.drawable, tracker.texture, 0)
+            applyComponentWithCollection(7, tracker)
         else
             local drawableId = GetPedDrawableVariation(ped, 7)
-            
+
             if drawableId ~= -1 then
                 local textureId = GetPedTextureVariation(ped, 7)
                 if drawableId == tracker.drawable and textureId == tracker.texture then
-                    SetPedComponentVariation(ped, 7, -1, 0, 2)
+                    SetPedComponentVariation(ped, 7, -1, 0, 2) -- Keep this special case as is
                 end
             end
         end
     end
 
     -- Mask
-    if data["mask"] ~= nil then
-        SetPedComponentVariation(ped, 1, data["mask"].item, data["mask"].texture, 0)
-    end
+    applyComponentWithCollection(1, data["mask"])
 
     -- Bag
-    if data["bag"] ~= nil then
-        SetPedComponentVariation(ped, 5, data["bag"].item, data["bag"].texture, 0)
+    applyComponentWithCollection(5, data["bag"])
+
+    -- Helper function to convert global prop index to collection-based and apply
+    local function applyPropWithCollection(propId, dataEntry)
+        if not dataEntry then
+            ClearPedProp(ped, propId)
+            return
+        end
+
+        local drawable = dataEntry.item or dataEntry.drawable
+        local texture = dataEntry.texture or 0
+        local collectionName = dataEntry.collection or dataEntry.collectionName
+        local localIndex = dataEntry.collection_local_index or dataEntry.collectionLocalIndex
+
+        if drawable ~= nil and drawable ~= -1 and drawable ~= 0 then
+            if collectionName ~= nil and localIndex ~= nil then
+                dataEntry.collection = collectionName
+                dataEntry.collection_local_index = localIndex
+                SetPedCollectionPropIndex(ped, propId, collectionName, localIndex, texture, true)
+            else
+                local resolvedCollection, resolvedIndex = client.getPropCollectionData(ped, propId, drawable)
+
+                if resolvedCollection ~= nil and resolvedIndex ~= nil then
+                    dataEntry.collection = resolvedCollection
+                    dataEntry.collection_local_index = resolvedIndex
+                    SetPedCollectionPropIndex(ped, propId, resolvedCollection, resolvedIndex, texture, true)
+                elseif not collectionsCount or collectionsCount <= 0 then
+                    SetPedPropIndex(ped, propId, drawable, texture, true)
+                end
+            end
+        else
+            dataEntry.collection = nil
+            dataEntry.collection_local_index = nil
+            ClearPedProp(ped, propId)
+        end
     end
 
     -- Hat
-    if data["hat"] ~= nil then
-        if data["hat"].item ~= -1 and data["hat"].item ~= 0 then
-            SetPedPropIndex(ped, 0, data["hat"].item, data["hat"].texture, true)
-        else
-            ClearPedProp(ped, 0)
-        end
-    end
+    applyPropWithCollection(0, data["hat"])
 
     -- Glass
-    if data["glass"] ~= nil then
-        if data["glass"].item ~= -1 and data["glass"].item ~= 0 then
-            SetPedPropIndex(ped, 1, data["glass"].item, data["glass"].texture, true)
-        else
-            ClearPedProp(ped, 1)
-        end
-    end
+    applyPropWithCollection(1, data["glass"])
 
     -- Ear
-    if data["ear"] ~= nil then
-        if data["ear"].item ~= -1 and data["ear"].item ~= 0 then
-            SetPedPropIndex(ped, 2, data["ear"].item, data["ear"].texture, true)
-        else
-            ClearPedProp(ped, 2)
-        end
-    end
+    applyPropWithCollection(2, data["ear"])
 
     local length = 0
     for _ in pairs(data) do
