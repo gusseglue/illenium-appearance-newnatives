@@ -412,12 +412,47 @@ resolveComponentVariation = function(ped, componentId, drawable, texture, hashOr
     local resolvedCollection = type(collection) == "string" and collection or nil
     local resolvedLocalDrawable = type(collectionDrawable) == "number" and collectionDrawable or nil
 
-    if (not resolvedCollection or resolvedLocalDrawable == nil) and type(drawable) == "number" and drawable >= 0 then
-        local lookupCollection = GetPedCollectionNameFromDrawable(ped, componentId, drawable)
-        local lookupLocal = GetPedCollectionLocalIndexFromDrawable(ped, componentId, drawable)
-        if type(lookupCollection) == "string" and type(lookupLocal) == "number" then
-            resolvedCollection = lookupCollection
-            resolvedLocalDrawable = lookupLocal
+    local requestedDrawable = type(drawable) == "number" and drawable or nil
+    if requestedDrawable ~= nil and requestedDrawable < 0 then
+        requestedDrawable = nil
+    end
+
+    local needsLookup = false
+
+    if resolvedCollection ~= nil and resolvedLocalDrawable ~= nil and requestedDrawable ~= nil then
+        local hintedGlobal = GetPedDrawableGlobalIndexFromCollection(
+            ped,
+            componentId,
+            resolvedCollection,
+            resolvedLocalDrawable
+        )
+
+        if type(hintedGlobal) ~= "number" or hintedGlobal ~= requestedDrawable then
+            debugPrint(
+                "resolveComponentVariation hint mismatch ped=%s component=%s requested=%s hinted=%s",
+                ped,
+                componentId,
+                tostring(requestedDrawable),
+                tostring(hintedGlobal)
+            )
+            needsLookup = true
+        end
+    end
+
+    if resolvedCollection == nil or resolvedLocalDrawable == nil or needsLookup then
+        if requestedDrawable ~= nil and requestedDrawable >= 0 then
+            local lookupCollection = GetPedCollectionNameFromDrawable(ped, componentId, requestedDrawable)
+            local lookupLocal = GetPedCollectionLocalIndexFromDrawable(ped, componentId, requestedDrawable)
+            if type(lookupCollection) == "string" and type(lookupLocal) == "number" then
+                resolvedCollection = lookupCollection
+                resolvedLocalDrawable = lookupLocal
+            else
+                resolvedCollection = nil
+                resolvedLocalDrawable = nil
+            end
+        else
+            resolvedCollection = nil
+            resolvedLocalDrawable = nil
         end
     end
 
@@ -443,7 +478,12 @@ resolveComponentVariation = function(ped, componentId, drawable, texture, hashOr
                 texture = 0
             end
 
-            local globalDrawable = GetPedDrawableGlobalIndexFromCollection(ped, componentId, resolvedCollection, resolvedLocalDrawable)
+            local globalDrawable = GetPedDrawableGlobalIndexFromCollection(
+                ped,
+                componentId,
+                resolvedCollection,
+                resolvedLocalDrawable
+            )
             if type(globalDrawable) ~= "number" then
                 globalDrawable = type(drawable) == "number" and drawable or 0
             end
@@ -629,12 +669,37 @@ resolvePropVariation = function(ped, propId, drawable, texture, hashOrCollection
     local resolvedCollection = type(collection) == "string" and collection or nil
     local resolvedLocalDrawable = type(collectionDrawable) == "number" and collectionDrawable or nil
 
-    if (not resolvedCollection or resolvedLocalDrawable == nil) then
-        local lookupCollection = GetPedCollectionNameFromProp(ped, propId, drawable)
-        local lookupLocal = GetPedCollectionLocalIndexFromProp(ped, propId, drawable)
-        if type(lookupCollection) == "string" and type(lookupLocal) == "number" then
-            resolvedCollection = lookupCollection
-            resolvedLocalDrawable = lookupLocal
+    local requestedDrawable = drawable >= 0 and drawable or nil
+    local needsLookup = false
+
+    if resolvedCollection ~= nil and resolvedLocalDrawable ~= nil and requestedDrawable ~= nil then
+        local hintedGlobal = GetPedPropGlobalIndexFromCollection(ped, propId, resolvedCollection, resolvedLocalDrawable)
+        if type(hintedGlobal) ~= "number" or hintedGlobal ~= requestedDrawable then
+            debugPrint(
+                "resolvePropVariation hint mismatch ped=%s prop=%s requested=%s hinted=%s",
+                ped,
+                propId,
+                tostring(requestedDrawable),
+                tostring(hintedGlobal)
+            )
+            needsLookup = true
+        end
+    end
+
+    if resolvedCollection == nil or resolvedLocalDrawable == nil or needsLookup then
+        if requestedDrawable ~= nil then
+            local lookupCollection = GetPedCollectionNameFromProp(ped, propId, requestedDrawable)
+            local lookupLocal = GetPedCollectionLocalIndexFromProp(ped, propId, requestedDrawable)
+            if type(lookupCollection) == "string" and type(lookupLocal) == "number" then
+                resolvedCollection = lookupCollection
+                resolvedLocalDrawable = lookupLocal
+            else
+                resolvedCollection = nil
+                resolvedLocalDrawable = nil
+            end
+        else
+            resolvedCollection = nil
+            resolvedLocalDrawable = nil
         end
     end
 
@@ -660,7 +725,12 @@ resolvePropVariation = function(ped, propId, drawable, texture, hashOrCollection
                 texture = 0
             end
 
-            local globalDrawable = GetPedPropGlobalIndexFromCollection(ped, propId, resolvedCollection, resolvedLocalDrawable)
+            local globalDrawable = GetPedPropGlobalIndexFromCollection(
+                ped,
+                propId,
+                resolvedCollection,
+                resolvedLocalDrawable
+            )
             if type(globalDrawable) ~= "number" then
                 globalDrawable = drawable
             end

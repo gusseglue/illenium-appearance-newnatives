@@ -47,12 +47,18 @@ end)
 
 RegisterNUICallback("appearance_change_component", function(component, cb)
     client.setPedComponent(cache.ped, component)
-    cb(client.getComponentSettings(cache.ped, component.component_id))
+    cb({
+        settings = client.getComponentSettings(cache.ped, component.component_id),
+        component = component
+    })
 end)
 
 RegisterNUICallback("appearance_change_prop", function(prop, cb)
     client.setPedProp(cache.ped, prop)
-    cb(client.getPropSettings(cache.ped, prop.prop_id))
+    cb({
+        settings = client.getPropSettings(cache.ped, prop.prop_id),
+        prop = prop
+    })
 end)
 
 RegisterNUICallback("appearance_change_head_blend", function(headBlend, cb)
