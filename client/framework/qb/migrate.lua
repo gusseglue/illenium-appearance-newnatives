@@ -2,6 +2,65 @@ if not Framework.QBCore() then return end
 
 local client = client
 
+local function debugComponentMigration(stage, componentId, drawable, texture)
+    client.debugPrint(
+        "qb-migrate %s component=%s drawable=%s texture=%s",
+        stage,
+        componentId,
+        tostring(drawable),
+        tostring(texture)
+    )
+end
+
+local function debugPropMigration(stage, propId, drawable, texture)
+    client.debugPrint(
+        "qb-migrate %s prop=%s drawable=%s texture=%s",
+        stage,
+        propId,
+        tostring(drawable),
+        tostring(texture)
+    )
+end
+
+local function setComponentValue(ped, componentId, drawable, texture, force, palette)
+    if drawable == nil then return end
+    debugComponentMigration("set", componentId, drawable, texture)
+    client.setPedComponent(ped, {
+        component_id = componentId,
+        drawable = drawable,
+        texture = texture or 0,
+        force = force,
+        palette = palette
+    })
+end
+
+local function applyComponentEntry(ped, componentId, entry)
+    if not entry or entry.item == nil then return end
+    setComponentValue(ped, componentId, entry.item, entry.texture, entry.force, entry.palette)
+end
+
+local function applyPropEntry(ped, propId, entry)
+    if not entry or entry.item == nil then return end
+    local drawable = entry.item
+    local texture = entry.texture or 0
+
+    if drawable == -1 or drawable == 0 then
+        debugPropMigration("clear", propId, drawable, texture)
+        client.setPedProp(ped, { prop_id = propId, drawable = -1 })
+        return
+    end
+
+    debugPropMigration("set", propId, drawable, texture)
+    client.setPedProp(ped, {
+        prop_id = propId,
+        drawable = drawable,
+        texture = texture,
+        collection = entry.collection,
+        collectionDrawable = entry.collectionDrawable,
+        attach = entry.attach ~= nil and entry.attach or true
+    })
+end
+
 local skinData = {
     ["face2"] = {
         item = 0,
@@ -24,7 +83,7 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-skin", f
         lib.requestModel(model, 1000)
         SetPlayerModel(cache.playerId, model)
         Wait(150)
-        SetPedComponentVariation(cache.ped, 0, 0, 0, 2)
+        setComponentValue(cache.ped, 0, 0, 0, true)
         TriggerEvent("illenium-appearance:client:migration:load-qb-clothing-clothes", playerSkin, cache.ped)
         SetModelAsNoLongerNeeded(model)
     end)
@@ -35,11 +94,11 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     if ped == nil then ped = cache.ped end
 
     for i = 0, 11 do
-        SetPedComponentVariation(ped, i, 0, 0, 0)
+        setComponentValue(ped, i, 0, 0, true)
     end
 
     for i = 0, 7 do
-        ClearPedProp(ped, i)
+        client.setPedProp(ped, { prop_id = i, drawable = -1 })
     end
 
     -- Face
@@ -53,12 +112,15 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadBlendData(ped, data["face"].item, data["face2"].item, nil, data["face"].texture, data["face2"].texture, nil, data["facemix"].shapeMix, data["facemix"].skinMix, nil, true)
 
     -- Pants
-    SetPedComponentVariation(ped, 4, data["pants"].item, 0, 0)
-    SetPedComponentVariation(ped, 4, data["pants"].item, data["pants"].texture, 0)
+    applyComponentEntry(ped, 4, data["pants"])
 
     -- Hair
-    SetPedComponentVariation(ped, 2, data["hair"].item, 0, 0)
-    SetPedHairColor(ped, data["hair"].texture, data["hair"].texture)
+    client.setPedHair(ped, {
+        style = data["hair"].item,
+        texture = 0,
+        color = data["hair"].texture or 0,
+        highlight = data["hair"].texture or 0
+    })
 
     -- Eyebrows
     SetPedHeadOverlay(ped, 2, data["eyebrows"].item, 1.0)
@@ -85,75 +147,46 @@ RegisterNetEvent("illenium-appearance:client:migration:load-qb-clothing-clothes"
     SetPedHeadOverlayColor(ped, 3, 1, data["ageing"].texture, 0)
 
     -- Arms
-    SetPedComponentVariation(ped, 3, data["arms"].item, 0, 2)
-    SetPedComponentVariation(ped, 3, data["arms"].item, data["arms"].texture, 0)
+    applyComponentEntry(ped, 3, data["arms"])
 
     -- T-Shirt
-    SetPedComponentVariation(ped, 8, data["t-shirt"].item, 0, 2)
-    SetPedComponentVariation(ped, 8, data["t-shirt"].item, data["t-shirt"].texture, 0)
+    applyComponentEntry(ped, 8, data["t-shirt"])
 
     -- Vest
-    SetPedComponentVariation(ped, 9, data["vest"].item, 0, 2)
-    SetPedComponentVariation(ped, 9, data["vest"].item, data["vest"].texture, 0)
+    applyComponentEntry(ped, 9, data["vest"])
 
     -- Torso 2
-    SetPedComponentVariation(ped, 11, data["torso2"].item, 0, 2)
-    SetPedComponentVariation(ped, 11, data["torso2"].item, data["torso2"].texture, 0)
+    applyComponentEntry(ped, 11, data["torso2"])
 
     -- Shoes
-    SetPedComponentVariation(ped, 6, data["shoes"].item, 0, 2)
-    SetPedComponentVariation(ped, 6, data["shoes"].item, data["shoes"].texture, 0)
+    applyComponentEntry(ped, 6, data["shoes"])
 
     -- Mask
-    SetPedComponentVariation(ped, 1, data["mask"].item, 0, 2)
-    SetPedComponentVariation(ped, 1, data["mask"].item, data["mask"].texture, 0)
+    applyComponentEntry(ped, 1, data["mask"])
 
     -- Badge
-    SetPedComponentVariation(ped, 10, data["decals"].item, 0, 2)
-    SetPedComponentVariation(ped, 10, data["decals"].item, data["decals"].texture, 0)
+    applyComponentEntry(ped, 10, data["decals"])
 
     -- Accessory
-    SetPedComponentVariation(ped, 7, data["accessory"].item, 0, 2)
-    SetPedComponentVariation(ped, 7, data["accessory"].item, data["accessory"].texture, 0)
+    applyComponentEntry(ped, 7, data["accessory"])
 
     -- Bag
-    SetPedComponentVariation(ped, 5, data["bag"].item, 0, 2)
-    SetPedComponentVariation(ped, 5, data["bag"].item, data["bag"].texture, 0)
+    applyComponentEntry(ped, 5, data["bag"])
 
     -- Hat
-    if data["hat"].item ~= -1 and data["hat"].item ~= 0 then
-        SetPedPropIndex(ped, 0, data["hat"].item, data["hat"].texture, true)
-    else
-        ClearPedProp(ped, 0)
-    end
+    applyPropEntry(ped, 0, data["hat"])
 
     -- Glass
-    if data["glass"].item ~= -1 and data["glass"].item ~= 0 then
-        SetPedPropIndex(ped, 1, data["glass"].item, data["glass"].texture, true)
-    else
-        ClearPedProp(ped, 1)
-    end
+    applyPropEntry(ped, 1, data["glass"])
 
     -- Ear
-    if data["ear"].item ~= -1 and data["ear"].item ~= 0 then
-        SetPedPropIndex(ped, 2, data["ear"].item, data["ear"].texture, true)
-    else
-        ClearPedProp(ped, 2)
-    end
+    applyPropEntry(ped, 2, data["ear"])
 
     -- Watch
-    if data["watch"].item ~= -1 and data["watch"].item ~= 0 then
-        SetPedPropIndex(ped, 6, data["watch"].item, data["watch"].texture, true)
-    else
-        ClearPedProp(ped, 6)
-    end
+    applyPropEntry(ped, 6, data["watch"])
 
     -- Bracelet
-    if data["bracelet"].item ~= -1 and data["bracelet"].item ~= 0 then
-        SetPedPropIndex(ped, 7, data["bracelet"].item, data["bracelet"].texture, true)
-    else
-        ClearPedProp(ped, 7)
-    end
+    applyPropEntry(ped, 7, data["bracelet"])
 
     if data["eye_color"].item ~= -1 and data["eye_color"].item ~= 0 then
         SetPedEyeColor(ped, data["eye_color"].item)

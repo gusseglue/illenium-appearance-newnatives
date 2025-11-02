@@ -4,6 +4,29 @@ local pedModelsByHash = {}
 local resolveComponentVariation
 local resolvePropVariation
 
+local DEBUG_CONVAR = "illenium-appearance:debugCollections"
+
+local function isDebugEnabled()
+    return Config.Debug or GetConvarInt(DEBUG_CONVAR, 0) == 1
+end
+
+local function debugPrint(fmt, ...)
+    if not isDebugEnabled() then return end
+
+    local message
+    if type(fmt) == "string" then
+        if select("#", ...) > 0 then
+            message = fmt:format(...)
+        else
+            message = fmt
+        end
+    else
+        message = tostring(fmt)
+    end
+
+    print(("[illenium-appearance] %s"):format(message))
+end
+
 local function tofloat(num)
     return num + 0.0
 end
@@ -319,10 +342,34 @@ end
 
 local function setPedHair(ped, hair, tattoos)
     if hair then
+        debugPrint(
+            "setPedHair request ped=%s style=%s texture=%s collection=%s local=%s",
+            ped,
+            tostring(hair.style),
+            tostring(hair.texture),
+            tostring(hair.collection),
+            tostring(hair.collectionDrawable)
+        )
         local style, texture, collectionName, collectionDrawable = resolveComponentVariation(ped, 2, hair.style, hair.texture, hair.collection, hair.collectionDrawable)
 
         if type(collectionName) == "string" and type(collectionDrawable) == "number" then
-            SetPedCollectionComponentVariation(ped, 2, collectionName, collectionDrawable, texture, 0)
+            if IsPedCollectionComponentVariationValid(ped, 2, collectionName, collectionDrawable, texture, 0) then
+                SetPedCollectionComponentVariation(ped, 2, collectionName, collectionDrawable, texture, 0)
+                debugPrint(
+                    "setPedHair applied collection=%s local=%s texture=%s",
+                    collectionName,
+                    collectionDrawable,
+                    texture
+                )
+            else
+                debugPrint(
+                    "setPedHair invalid collection=%s local=%s texture=%s – falling back to legacy setter",
+                    tostring(collectionName),
+                    tostring(collectionDrawable),
+                    tostring(texture)
+                )
+                SetPedComponentVariation(ped, 2, style, texture, 0)
+            end
         else
             SetPedComponentVariation(ped, 2, style, texture, 0)
         end
@@ -344,6 +391,16 @@ local function setPedEyeColor(ped, eyeColor)
 end
 
 resolveComponentVariation = function(ped, componentId, drawable, texture, hashOrCollection, collectionOrDrawable, maybeCollectionDrawable)
+    debugPrint(
+        "resolveComponentVariation start ped=%s component=%s drawable=%s texture=%s hintCollection=%s hintLocal=%s",
+        ped,
+        componentId,
+        tostring(drawable),
+        tostring(texture),
+        tostring(hashOrCollection),
+        tostring(collectionOrDrawable)
+    )
+
     local collection = collectionOrDrawable
     local collectionDrawable = maybeCollectionDrawable
 
@@ -391,6 +448,15 @@ resolveComponentVariation = function(ped, componentId, drawable, texture, hashOr
                 globalDrawable = type(drawable) == "number" and drawable or 0
             end
 
+            debugPrint(
+                "resolveComponentVariation result ped=%s component=%s global=%s texture=%s collection=%s local=%s",
+                ped,
+                componentId,
+                globalDrawable,
+                texture,
+                resolvedCollection,
+                resolvedLocalDrawable
+            )
             return globalDrawable, texture, resolvedCollection, resolvedLocalDrawable
         end
     end
@@ -423,18 +489,47 @@ resolveComponentVariation = function(ped, componentId, drawable, texture, hashOr
     local fallbackLocalDrawable = GetPedCollectionLocalIndexFromDrawable(ped, componentId, drawable)
 
     if type(fallbackCollection) == "string" and type(fallbackLocalDrawable) == "number" then
+        debugPrint(
+            "resolveComponentVariation fallback ped=%s component=%s global=%s texture=%s collection=%s local=%s",
+            ped,
+            componentId,
+            drawable,
+            texture,
+            fallbackCollection,
+            fallbackLocalDrawable
+        )
         return drawable, texture, fallbackCollection, fallbackLocalDrawable
     end
 
+    debugPrint(
+        "resolveComponentVariation legacy ped=%s component=%s global=%s texture=%s",
+        ped,
+        componentId,
+        drawable,
+        texture
+    )
     return drawable, texture, nil, nil
 end
 
 local function setPedComponent(ped, component)
     if component then
-        if isPedFreemodeModel(ped) and (component.component_id == 0 or component.component_id == 2) then
+        if isPedFreemodeModel(ped) and (component.component_id == 0 or component.component_id == 2) and not component.force then
+            debugPrint(
+                "setPedComponent skipping restricted component=%s without force flag",
+                component.component_id
+            )
             return
         end
 
+        debugPrint(
+            "setPedComponent request ped=%s component=%s drawable=%s texture=%s collection=%s local=%s",
+            ped,
+            component.component_id,
+            tostring(component.drawable),
+            tostring(component.texture),
+            tostring(component.collection),
+            tostring(component.collectionDrawable)
+        )
         local resolvedDrawable, resolvedTexture, resolvedCollection, resolvedLocalDrawable = resolveComponentVariation(
             ped,
             component.component_id,
@@ -443,16 +538,50 @@ local function setPedComponent(ped, component)
             component.collection,
             component.collectionDrawable
         )
+        local palette = component.palette or 0
 
         if type(resolvedCollection) == "string" and type(resolvedLocalDrawable) == "number" then
-            SetPedCollectionComponentVariation(ped, component.component_id, resolvedCollection, resolvedLocalDrawable, resolvedTexture, 0)
+            if IsPedCollectionComponentVariationValid(ped, component.component_id, resolvedCollection, resolvedLocalDrawable, resolvedTexture, palette) then
+                SetPedCollectionComponentVariation(ped, component.component_id, resolvedCollection, resolvedLocalDrawable, resolvedTexture, palette)
+                debugPrint(
+                    "setPedComponent applied collection=%s local=%s texture=%s",
+                    resolvedCollection,
+                    resolvedLocalDrawable,
+                    resolvedTexture
+                )
+            else
+                debugPrint(
+                    "setPedComponent invalid collection=%s local=%s texture=%s – using legacy setter",
+                    tostring(resolvedCollection),
+                    tostring(resolvedLocalDrawable),
+                    tostring(resolvedTexture)
+                )
+                SetPedComponentVariation(ped, component.component_id, resolvedDrawable, resolvedTexture, palette)
+            end
         else
-            SetPedComponentVariation(ped, component.component_id, resolvedDrawable, resolvedTexture, 0)
+            debugPrint(
+                "setPedComponent legacy setter ped=%s component=%s global=%s texture=%s",
+                ped,
+                component.component_id,
+                resolvedDrawable,
+                resolvedTexture
+            )
+            SetPedComponentVariation(ped, component.component_id, resolvedDrawable, resolvedTexture, palette)
         end
 
         component.drawable = GetPedDrawableVariation(ped, component.component_id)
         component.texture = GetPedTextureVariation(ped, component.component_id)
         component.collection, component.collectionDrawable = getComponentCollectionInfo(ped, component.component_id)
+        component.palette = nil
+        component.force = nil
+        debugPrint(
+            "setPedComponent current ped component=%s drawable=%s texture=%s collection=%s local=%s",
+            component.component_id,
+            component.drawable,
+            component.texture,
+            tostring(component.collection),
+            tostring(component.collectionDrawable)
+        )
     end
 end
 
@@ -470,6 +599,12 @@ resolvePropVariation = function(ped, propId, drawable, texture, hashOrCollection
     end
 
     if drawable < 0 then
+        debugPrint(
+            "resolvePropVariation removing ped=%s prop=%s (requested drawable=%s)",
+            ped,
+            propId,
+            tostring(drawable)
+        )
         return -1, 0, nil, nil
     end
 
@@ -480,6 +615,16 @@ resolvePropVariation = function(ped, propId, drawable, texture, hashOrCollection
         collection = hashOrCollection
         collectionDrawable = collectionOrDrawable
     end
+
+    debugPrint(
+        "resolvePropVariation start ped=%s prop=%s drawable=%s texture=%s hintCollection=%s hintLocal=%s",
+        ped,
+        propId,
+        tostring(drawable),
+        tostring(texture),
+        tostring(collection),
+        tostring(collectionDrawable)
+    )
 
     local resolvedCollection = type(collection) == "string" and collection or nil
     local resolvedLocalDrawable = type(collectionDrawable) == "number" and collectionDrawable or nil
@@ -520,6 +665,15 @@ resolvePropVariation = function(ped, propId, drawable, texture, hashOrCollection
                 globalDrawable = drawable
             end
 
+            debugPrint(
+                "resolvePropVariation result ped=%s prop=%s global=%s texture=%s collection=%s local=%s",
+                ped,
+                propId,
+                globalDrawable,
+                texture,
+                resolvedCollection,
+                resolvedLocalDrawable
+            )
             return globalDrawable, texture, resolvedCollection, resolvedLocalDrawable
         end
     end
@@ -552,9 +706,25 @@ resolvePropVariation = function(ped, propId, drawable, texture, hashOrCollection
     local fallbackLocalDrawable = GetPedCollectionLocalIndexFromProp(ped, propId, drawable)
 
     if type(fallbackCollection) == "string" and type(fallbackLocalDrawable) == "number" then
+        debugPrint(
+            "resolvePropVariation fallback ped=%s prop=%s global=%s texture=%s collection=%s local=%s",
+            ped,
+            propId,
+            drawable,
+            texture,
+            fallbackCollection,
+            fallbackLocalDrawable
+        )
         return drawable, texture, fallbackCollection, fallbackLocalDrawable
     end
 
+    debugPrint(
+        "resolvePropVariation legacy ped=%s prop=%s global=%s texture=%s",
+        ped,
+        propId,
+        drawable,
+        texture
+    )
     return drawable, texture, nil, nil
 end
 
@@ -565,7 +735,18 @@ local function setPedProp(ped, prop)
             prop.texture = -1
             prop.collection = nil
             prop.collectionDrawable = nil
+            prop.attach = nil
+            debugPrint("setPedProp cleared ped=%s prop=%s", ped, prop.prop_id)
         else
+            debugPrint(
+                "setPedProp request ped=%s prop=%s drawable=%s texture=%s collection=%s local=%s",
+                ped,
+                prop.prop_id,
+                tostring(prop.drawable),
+                tostring(prop.texture),
+                tostring(prop.collection),
+                tostring(prop.collectionDrawable)
+            )
             local drawable, texture, collectionName, collectionDrawable = resolvePropVariation(
                 ped,
                 prop.prop_id,
@@ -580,13 +761,58 @@ local function setPedProp(ped, prop)
                 prop.texture = -1
                 prop.collection = nil
                 prop.collectionDrawable = nil
+                prop.attach = nil
+                debugPrint("setPedProp cleared after resolve ped=%s prop=%s", ped, prop.prop_id)
                 return
             end
 
+            local attach = prop.attach
+            if attach == nil then
+                attach = false
+            end
             if type(collectionName) == "string" and type(collectionDrawable) == "number" then
-                SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, collectionDrawable, texture, false)
+                local appliedWithCollection = false
+                if IsPedCollectionPropVariationValid then
+                    if IsPedCollectionPropVariationValid(ped, prop.prop_id, collectionName, collectionDrawable, texture) then
+                        SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, collectionDrawable, texture, attach)
+                        appliedWithCollection = true
+                        debugPrint(
+                            "setPedProp applied collection=%s local=%s texture=%s",
+                            collectionName,
+                            collectionDrawable,
+                            texture
+                        )
+                    else
+                        debugPrint(
+                            "setPedProp invalid collection=%s local=%s texture=%s – using legacy setter",
+                            tostring(collectionName),
+                            tostring(collectionDrawable),
+                            tostring(texture)
+                        )
+                    end
+                else
+                    SetPedCollectionPropIndex(ped, prop.prop_id, collectionName, collectionDrawable, texture, attach)
+                    appliedWithCollection = true
+                    debugPrint(
+                        "setPedProp applied collection (no validity native) collection=%s local=%s texture=%s",
+                        collectionName,
+                        collectionDrawable,
+                        texture
+                    )
+                end
+
+                if not appliedWithCollection then
+                    SetPedPropIndex(ped, prop.prop_id, drawable, texture, attach)
+                end
             else
-                SetPedPropIndex(ped, prop.prop_id, drawable, texture, false)
+                debugPrint(
+                    "setPedProp legacy setter ped=%s prop=%s global=%s texture=%s",
+                    ped,
+                    prop.prop_id,
+                    drawable,
+                    texture
+                )
+                SetPedPropIndex(ped, prop.prop_id, drawable, texture, attach)
             end
 
             local currentDrawable = GetPedPropIndex(ped, prop.prop_id)
@@ -595,10 +821,21 @@ local function setPedProp(ped, prop)
                 prop.texture = -1
                 prop.collection = nil
                 prop.collectionDrawable = nil
+                prop.attach = nil
+                debugPrint("setPedProp current ped prop=%s cleared", prop.prop_id)
             else
                 prop.drawable = currentDrawable
                 prop.texture = GetPedPropTextureIndex(ped, prop.prop_id)
                 prop.collection, prop.collectionDrawable = getPropCollectionInfo(ped, prop.prop_id)
+                prop.attach = attach
+                debugPrint(
+                    "setPedProp current ped prop=%s drawable=%s texture=%s collection=%s local=%s",
+                    prop.prop_id,
+                    prop.drawable,
+                    prop.texture,
+                    tostring(prop.collection),
+                    tostring(prop.collectionDrawable)
+                )
             end
         end
     end
@@ -698,6 +935,7 @@ exports("resolvePropVariation", resolvePropVariation)
 exports("setPlayerAppearance", setPlayerAppearance)
 exports("setPedAppearance", setPedAppearance)
 exports("setPedTattoos", setPedTattoos)
+exports("debugPrint", debugPrint)
 
 client = {
     getPedAppearance = getPedAppearance,
@@ -724,5 +962,6 @@ client = {
     setPedComponents = setPedComponents,
     setPedProps = setPedProps,
     getPedComponents = getPedComponents,
-    getPedProps = getPedProps
+    getPedProps = getPedProps,
+    debugPrint = debugPrint
 }

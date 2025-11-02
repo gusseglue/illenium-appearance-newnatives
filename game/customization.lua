@@ -521,11 +521,29 @@ local function removeClothes(typeClothes)
 
     for i = 1, #components do
         local component = components[i]
-        SetPedComponentVariation(cache.ped, component[1], component[2], 0, 2)
+        local componentId = component[1]
+        local drawable = component[2]
+        local texture = component.texture or component[3] or 0
+        local palette = component.palette or component[4] or 2
+        client.debugPrint(
+            "removeClothes component=%s drawable=%s texture=%s palette=%s",
+            componentId,
+            drawable,
+            texture,
+            palette
+        )
+        client.setPedComponent(cache.ped, {
+            component_id = componentId,
+            drawable = drawable,
+            texture = texture,
+            palette = palette
+        })
     end
 
     for i = 1, #props do
-        ClearPedProp(cache.ped, props[i][1])
+        local propId = props[i][1]
+        client.debugPrint("removeClothes clearing prop=%s", propId)
+        client.setPedProp(cache.ped, { prop_id = propId, drawable = -1 })
     end
 
     TaskPlayAnim(cache.ped, animationsOff.dict, animationsOff.anim, 3.0, 3.0, animationsOff.duration, animationsOff.move, 0, false, false, false)
