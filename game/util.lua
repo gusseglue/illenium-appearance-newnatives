@@ -43,6 +43,17 @@ local function getComponentHash(ped, componentId, drawable, texture)
     return GetHashNameForComponent(ped, componentId, drawable, texture)
 end
 
+local function getComponentCollectionInfo(ped, componentId)
+    local collection = GetPedDrawableVariationCollectionName(ped, componentId)
+    local collectionDrawable = GetPedDrawableVariationCollectionLocalIndex(ped, componentId)
+
+    if type(collectionDrawable) ~= "number" then
+        return nil, nil
+    end
+
+    return collection, collectionDrawable
+end
+
 local function getPedComponents(ped)
     local size = #constants.PED_COMPONENTS_IDS
     local components = table.create(size, 0)
@@ -51,11 +62,14 @@ local function getPedComponents(ped)
         local componentId = constants.PED_COMPONENTS_IDS[i]
         local drawable = GetPedDrawableVariation(ped, componentId)
         local texture = GetPedTextureVariation(ped, componentId)
+        local collection, collectionDrawable = getComponentCollectionInfo(ped, componentId)
         components[i] = {
             component_id = componentId,
             drawable = drawable,
             texture = texture,
-            hash = getComponentHash(ped, componentId, drawable, texture)
+            hash = getComponentHash(ped, componentId, drawable, texture),
+            collection = collection,
+            collectionDrawable = collectionDrawable
         }
     end
 
@@ -72,6 +86,17 @@ local function getPropHash(ped, propId, drawable, texture)
     return GetHashNameForProp(ped, propId, drawable, texture)
 end
 
+local function getPropCollectionInfo(ped, propId)
+    local collection = GetPedPropCollectionName(ped, propId)
+    local collectionDrawable = GetPedPropCollectionLocalIndex(ped, propId)
+
+    if type(collectionDrawable) ~= "number" then
+        return nil, nil
+    end
+
+    return collection, collectionDrawable
+end
+
 local function getPedProps(ped)
     local size = #constants.PED_PROPS_IDS
     local props = table.create(size, 0)
@@ -80,11 +105,17 @@ local function getPedProps(ped)
         local propId = constants.PED_PROPS_IDS[i]
         local drawable = GetPedPropIndex(ped, propId)
         local texture = GetPedPropTextureIndex(ped, propId)
+        local collection, collectionDrawable = nil, nil
+        if drawable ~= -1 then
+            collection, collectionDrawable = getPropCollectionInfo(ped, propId)
+        end
         props[i] = {
             prop_id = propId,
             drawable = drawable,
             texture = texture,
-            hash = getPropHash(ped, propId, drawable, texture)
+            hash = getPropHash(ped, propId, drawable, texture),
+            collection = collection,
+            collectionDrawable = collectionDrawable
         }
     end
     return props
@@ -171,12 +202,15 @@ end
 local function getPedHair(ped)
     local style = GetPedDrawableVariation(ped, 2)
     local texture = GetPedTextureVariation(ped, 2)
+    local collection, collectionDrawable = getComponentCollectionInfo(ped, 2)
     return {
         style = style,
         color = GetPedHairColor(ped),
         highlight = GetPedHairHighlightColor(ped),
         texture = texture,
-        hash = getComponentHash(ped, 2, style, texture)
+        hash = getComponentHash(ped, 2, style, texture),
+        collection = collection,
+        collectionDrawable = collectionDrawable
     }
 end
 
@@ -304,12 +338,13 @@ end
 
 local function setPedHair(ped, hair, tattoos)
     if hair then
-        local style, texture = resolveComponentVariation(ped, 2, hair.style, hair.texture, hair.hash)
+        local style, texture = resolveComponentVariation(ped, 2, hair.style, hair.texture, hair.hash, hair.collection, hair.collectionDrawable)
         SetPedComponentVariation(ped, 2, style, texture, 0)
         SetPedHairColor(ped, hair.color, hair.highlight)
         hair.style = style
         hair.texture = texture
         hair.hash = getComponentHash(ped, 2, style, texture)
+        hair.collection, hair.collectionDrawable = getComponentCollectionInfo(ped, 2)
         if isPedFreemodeModel(ped) then
             setTattoos(ped, tattoos or PED_TATTOOS, style)
         end
@@ -330,7 +365,14 @@ local function resolveComponentHash(hashValue)
     return hashValue
 end
 
-resolveComponentVariation = function(ped, componentId, drawable, texture, hash)
+resolveComponentVariation = function(ped, componentId, drawable, texture, hash, collection, collectionDrawable)
+    if type(collection) == "string" and type(collectionDrawable) == "number" then
+        local globalDrawable = GetPedDrawableGlobalIndexFromCollection(ped, componentId, collection, collectionDrawable)
+        if type(globalDrawable) == "number" and globalDrawable >= 0 then
+            drawable = globalDrawable
+        end
+    end
+
     local targetHash = resolveComponentHash(hash)
 
     if targetHash and targetHash ~= 0 then
@@ -378,11 +420,20 @@ local function setPedComponent(ped, component)
             return
         end
 
-        local drawable, texture = resolveComponentVariation(ped, component.component_id, component.drawable, component.texture, component.hash)
+        local drawable, texture = resolveComponentVariation(
+            ped,
+            component.component_id,
+            component.drawable,
+            component.texture,
+            component.hash,
+            component.collection,
+            component.collectionDrawable
+        )
         SetPedComponentVariation(ped, component.component_id, drawable, texture, 0)
         component.drawable = drawable
         component.texture = texture
         component.hash = getComponentHash(ped, component.component_id, drawable, texture)
+        component.collection, component.collectionDrawable = getComponentCollectionInfo(ped, component.component_id)
     end
 end
 
@@ -394,7 +445,14 @@ local function setPedComponents(ped, components)
     end
 end
 
-resolvePropVariation = function(ped, propId, drawable, texture, hash)
+resolvePropVariation = function(ped, propId, drawable, texture, hash, collection, collectionDrawable)
+    if type(collection) == "string" and type(collectionDrawable) == "number" then
+        local globalDrawable = GetPedPropGlobalIndexFromCollection(ped, propId, collection, collectionDrawable)
+        if type(globalDrawable) == "number" and globalDrawable >= 0 then
+            drawable = globalDrawable
+        end
+    end
+
     local targetHash = resolveComponentHash(hash)
 
     if targetHash and targetHash ~= 0 then
@@ -450,13 +508,25 @@ local function setPedProp(ped, prop)
             ClearPedProp(ped, prop.prop_id)
             prop.texture = -1
             prop.hash = nil
+            prop.collection = nil
+            prop.collectionDrawable = nil
         else
-            local drawable, texture = resolvePropVariation(ped, prop.prop_id, prop.drawable, prop.texture, prop.hash)
+            local drawable, texture = resolvePropVariation(
+                ped,
+                prop.prop_id,
+                prop.drawable,
+                prop.texture,
+                prop.hash,
+                prop.collection,
+                prop.collectionDrawable
+            )
             if drawable == -1 then
                 ClearPedProp(ped, prop.prop_id)
                 prop.drawable = -1
                 prop.texture = -1
                 prop.hash = nil
+                prop.collection = nil
+                prop.collectionDrawable = nil
                 return
             end
 
@@ -464,6 +534,7 @@ local function setPedProp(ped, prop)
             prop.drawable = drawable
             prop.texture = texture
             prop.hash = getPropHash(ped, prop.prop_id, drawable, texture)
+            prop.collection, prop.collectionDrawable = getPropCollectionInfo(ped, prop.prop_id)
         end
     end
 end
