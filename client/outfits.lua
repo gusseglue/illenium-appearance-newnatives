@@ -1,3 +1,5 @@
+local client = client
+
 local function typeof(var)
     local _type = type(var);
     if (_type ~= "table" and _type ~= "userdata") then
@@ -20,101 +22,101 @@ function LoadJobOutfit(oData)
         data = json.decode(data)
     end
 
-    -- Pants
-    if data["pants"] ~= nil then
-        SetPedComponentVariation(ped, 4, data["pants"].item, data["pants"].texture, 0)
+    local function applyComponent(componentId, slot)
+        if not slot or slot.item == nil then return end
+
+        local component = {
+            component_id = componentId,
+            drawable = slot.item,
+            texture = slot.texture or 0,
+            collection = slot.collection,
+            collectionDrawable = slot.collectionDrawable,
+            palette = slot.palette
+        }
+
+        client.debugPrint(
+            "LoadJobOutfit component=%s drawable=%s texture=%s collection=%s local=%s",
+            componentId,
+            tostring(component.drawable),
+            tostring(component.texture),
+            tostring(component.collection),
+            tostring(component.collectionDrawable)
+        )
+
+        client.setPedComponent(ped, component)
     end
 
-    -- Arms
-    if data["arms"] ~= nil then
-        SetPedComponentVariation(ped, 3, data["arms"].item, data["arms"].texture, 0)
-    end
+    local function applyProp(propId, slot)
+        if not slot then return end
 
-    -- T-Shirt
-    if data["t-shirt"] ~= nil then
-        SetPedComponentVariation(ped, 8, data["t-shirt"].item, data["t-shirt"].texture, 0)
-    end
+        local drawable = slot.item
+        if drawable == nil then return end
 
-    -- Vest
-    if data["vest"] ~= nil then
-        SetPedComponentVariation(ped, 9, data["vest"].item, data["vest"].texture, 0)
-    end
-
-    -- Torso 2
-    if data["torso2"] ~= nil then
-        SetPedComponentVariation(ped, 11, data["torso2"].item, data["torso2"].texture, 0)
-    end
-
-    -- Shoes
-    if data["shoes"] ~= nil then
-        SetPedComponentVariation(ped, 6, data["shoes"].item, data["shoes"].texture, 0)
-    end
-
-    -- Badge
-    if data["decals"] ~= nil then
-        SetPedComponentVariation(ped, 10, data["decals"].item, data["decals"].texture, 0)
-    end
-
-    -- Accessory
-    local tracker = Config.TrackerClothingOptions
-
-    if data["accessory"] ~= nil then
-        if Framework.HasTracker() then
-            SetPedComponentVariation(ped, 7, tracker.drawable, tracker.texture, 0)
-        else
-            SetPedComponentVariation(ped, 7, data["accessory"].item, data["accessory"].texture, 0)
+        if drawable == -1 or drawable == 0 then
+            client.setPedProp(ped, { prop_id = propId, drawable = -1 })
+            return
         end
+
+        local prop = {
+            prop_id = propId,
+            drawable = drawable,
+            texture = slot.texture or 0,
+            collection = slot.collection,
+            collectionDrawable = slot.collectionDrawable,
+            attach = slot.attach ~= nil and slot.attach or true
+        }
+
+        client.debugPrint(
+            "LoadJobOutfit prop=%s drawable=%s texture=%s collection=%s local=%s",
+            propId,
+            tostring(prop.drawable),
+            tostring(prop.texture),
+            tostring(prop.collection),
+            tostring(prop.collectionDrawable)
+        )
+
+        client.setPedProp(ped, prop)
+    end
+
+    applyComponent(4, data["pants"])
+    applyComponent(3, data["arms"])
+    applyComponent(8, data["t-shirt"])
+    applyComponent(9, data["vest"])
+    applyComponent(11, data["torso2"])
+    applyComponent(6, data["shoes"])
+    applyComponent(10, data["decals"])
+    applyComponent(1, data["mask"])
+    applyComponent(5, data["bag"])
+
+    local tracker = Config.TrackerClothingOptions
+    if Framework.HasTracker() then
+        client.setPedComponent(ped, {
+            component_id = 7,
+            drawable = tracker.drawable,
+            texture = tracker.texture,
+            collection = tracker.collection,
+            collectionDrawable = tracker.collectionDrawable
+        })
     else
-        if Framework.HasTracker() then
-            SetPedComponentVariation(ped, 7, tracker.drawable, tracker.texture, 0)
+        local accessory = data["accessory"]
+        if accessory then
+            applyComponent(7, accessory)
         else
             local drawableId = GetPedDrawableVariation(ped, 7)
-            
-            if drawableId ~= -1 then
-                local textureId = GetPedTextureVariation(ped, 7)
-                if drawableId == tracker.drawable and textureId == tracker.texture then
-                    SetPedComponentVariation(ped, 7, -1, 0, 2)
-                end
+            local textureId = GetPedTextureVariation(ped, 7)
+            if drawableId == tracker.drawable and textureId == tracker.texture then
+                client.setPedComponent(ped, {
+                    component_id = 7,
+                    drawable = 0,
+                    texture = 0
+                })
             end
         end
     end
 
-    -- Mask
-    if data["mask"] ~= nil then
-        SetPedComponentVariation(ped, 1, data["mask"].item, data["mask"].texture, 0)
-    end
-
-    -- Bag
-    if data["bag"] ~= nil then
-        SetPedComponentVariation(ped, 5, data["bag"].item, data["bag"].texture, 0)
-    end
-
-    -- Hat
-    if data["hat"] ~= nil then
-        if data["hat"].item ~= -1 and data["hat"].item ~= 0 then
-            SetPedPropIndex(ped, 0, data["hat"].item, data["hat"].texture, true)
-        else
-            ClearPedProp(ped, 0)
-        end
-    end
-
-    -- Glass
-    if data["glass"] ~= nil then
-        if data["glass"].item ~= -1 and data["glass"].item ~= 0 then
-            SetPedPropIndex(ped, 1, data["glass"].item, data["glass"].texture, true)
-        else
-            ClearPedProp(ped, 1)
-        end
-    end
-
-    -- Ear
-    if data["ear"] ~= nil then
-        if data["ear"].item ~= -1 and data["ear"].item ~= 0 then
-            SetPedPropIndex(ped, 2, data["ear"].item, data["ear"].texture, true)
-        else
-            ClearPedProp(ped, 2)
-        end
-    end
+    applyProp(0, data["hat"])
+    applyProp(1, data["glass"])
+    applyProp(2, data["ear"])
 
     local length = 0
     for _ in pairs(data) do
