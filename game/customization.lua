@@ -487,7 +487,8 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedComponents do
             local applied = appliedComponents[j]
             if applied.component_id == componentId then
-                SetPedComponentVariation(cache.ped, componentId, applied.drawable, applied.texture, 2)
+                client.setPedComponent(cache.ped, applied)
+                break
             end
         end
     end
@@ -497,7 +498,8 @@ local function wearClothes(data, typeClothes)
         for j = 1, #appliedProps do
             local applied = appliedProps[j]
             if applied.prop_id == propId then
-                SetPedPropIndex(cache.ped, propId, applied.drawable, applied.texture, true)
+                client.setPedProp(cache.ped, applied)
+                break
             end
         end
     end
